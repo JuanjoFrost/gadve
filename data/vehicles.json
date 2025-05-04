@@ -1,0 +1,48 @@
+{
+    "vehicles": [
+      {
+        "id": "ABCD-01",
+        "type": "Sedan",
+        "brand": "Kia",
+        "model": "cerato",
+        "year": "2022",
+        "color": "red",
+        "assignmentDate": "01-01-2025",
+        "status": "checklist",
+        "actions": ["viewMore", "return"]
+      },
+      {
+        "id": "DRET-88",
+        "type": "Sedan",
+        "brand": "Nissan",
+        "model": "v17",
+        "year": "2000",
+        "color": "blue",
+        "assignmentDate": "05-03-2025",
+        "status": "checklist",
+        "actions": ["viewMore", "return"]
+      },
+      {
+        "id": "PKIO-54",
+        "type": "Sedan",
+        "brand": "Susuki",
+        "model": "baleno",
+        "year": "2019",
+        "color": "red",
+        "assignmentDate": "",
+        "status": "approval",
+        "actions": ["viewMore", "approve", "reject"]
+      },
+      {
+        "id": "PKIO-542",
+        "type": "Sedan",
+        "brand": "Susuki",
+        "model": "baleno",
+        "year": "2019",
+        "color": "red",
+        "assignmentDate": "",
+        "status": "return",
+        "actions": [""]
+      }
+    ]
+  }
