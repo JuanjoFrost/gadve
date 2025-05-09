@@ -9,7 +9,9 @@
         "color": "red",
         "assignmentDate": "01-01-2025",
         "status": "checklist",
-        "actions": ["viewMore", "return"]
+        "actions": ["viewMore", "return"],
+        "engine": "V6",
+        "chassis": "ABC123456789"
       },
       {
         "id": "DRET-88",
@@ -20,7 +22,9 @@
         "color": "blue",
         "assignmentDate": "05-03-2025",
         "status": "checklist",
-        "actions": ["viewMore", "return"]
+        "actions": ["viewMore", "return"],
+        "engine": "222L",
+        "chassis": "34324"
       },
       {
         "id": "PKIO-54",
@@ -31,7 +35,9 @@
         "color": "red",
         "assignmentDate": "",
         "status": "approval",
-        "actions": ["viewMore", "approve", "reject"]
+        "actions": ["viewMore", "approve", "reject"],
+        "engine": "V1",
+        "chassis": "1234567890"
       },
       {
         "id": "PKIO-542",
@@ -42,7 +48,9 @@
         "color": "red",
         "assignmentDate": "",
         "status": "return",
-        "actions": [""]
+        "actions": [""],
+        "engine": "V3",
+        "chassis": "1234567DFG"
       }
     ]
   }
