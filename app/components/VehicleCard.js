@@ -101,7 +101,7 @@ const VehicleCard = ({
               <ActionButton
                 title="Devolver"
                 iconName="keyboard-return"
-                colors={["#673AB7", "#4527A0"]}
+                colors={["#293e5d", "#17335C"]}
                 onPress={() => onReturnVehicle(vehicle.id)}
               />
             )}

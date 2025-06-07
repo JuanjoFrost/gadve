@@ -634,7 +634,7 @@ const CheckList = ({
               </View>
 
               <LinearGradient
-                colors={["#9f64ff", "#7722FF"]}
+                colors={["#293e5d", "#17335C"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.vehicleCard}
