@@ -1,33 +1,42 @@
 {
   "expo": {
-    "name": "cadve2.1",
-    "slug": "cadve2.1",
+    "name": "Gadve Beta",
+    "slug": "cadve2-1",
     "scheme": "cadve2.1",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/gadve-icon.png",
+    "userInterfaceStyle": "automatic",  
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/gadve-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.juanjofrost.cadve21" 
     },
-    "android": {
+   "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/gadve-icon.png",
+        "backgroundColor": "#FFFFFF"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.juanjofrost.cadve21"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
-    ]
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ae0260b5-23ee-4587-8989-39d9ccc6be2b"
+      }
+    }
   }
 }
