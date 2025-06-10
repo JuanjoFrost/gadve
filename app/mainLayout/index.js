@@ -1,20 +1,55 @@
-import React from "react";
-import { View, StyleSheet, Text, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import {
   createDrawerNavigator,
   DrawerItemList,
 } from "@react-navigation/drawer";
-import Logo from "../components/logo"; // Asegúrate de que la ruta sea correcta
+import Logo from "../components/logo";
 import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useToast } from "../hooks/useToast";
+import Toast from "../components/Toast";
+
 
 const Drawer = createDrawerNavigator();
 
 const MainLayout = ({ children }) => {
+  // ✅ AGREGAR: Hook del toast
+  const { toast, showToast, hideToast } = useToast();
+  
+  // ✅ AGREGAR: Estado para controlar el loading del logout
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // ✅ AGREGAR: Función para WhatsApp
+  const handleWhatsAppPress = () => {
+    showToast("Funcionalidad en desarrollo. Próximamente.", "info");
+  };
+
+  // ✅ MEJORAR: Función para logout con loading
+  const handleLogout = () => {
+    if (isLoggingOut) return; // Prevenir múltiples clicks
+    
+    setIsLoggingOut(true);
+    
+    setTimeout(() => {
+      setIsLoggingOut(false);
+      router.replace("/login");
+    }, 1500);
+  };
+
   return (
     <View style={styles.container}>
+      {/* ✅ AGREGAR: Toast Component */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        duration={toast.duration}
+        onHide={hideToast}
+      />
+
       <Drawer.Navigator
         initialRouteName="Mis vehículos"
         drawerContent={(props) => (
@@ -24,13 +59,24 @@ const MainLayout = ({ children }) => {
             {/* Opciones del menú */}
             <DrawerItemList {...props} />
 
-            {/* Botón adicional */}
+            {/* ✅ MEJORAR: Botón de logout con loading */}
             <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={() => router.replace("/login")}
+              style={[
+                styles.logoutButton,
+                isLoggingOut && styles.logoutButtonDisabled
+              ]}
+              onPress={handleLogout}
+              disabled={isLoggingOut}
+              activeOpacity={isLoggingOut ? 1 : 0.8}
             >
-              <Ionicons name="log-out-outline" size={20} color="#fff" />
-              <Text style={styles.logoutText}>Cerrar sesión</Text>
+              {isLoggingOut ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="log-out-outline" size={20} color="#fff" />
+              )}
+              <Text style={styles.logoutText}>
+                {isLoggingOut ? "Cerrando..." : "Cerrar sesión"}
+              </Text>
             </TouchableOpacity>
           </SafeAreaView>
         )}
@@ -77,7 +123,7 @@ const MainLayout = ({ children }) => {
       {/* Ícono de WhatsApp */}
       <TouchableOpacity
         style={styles.whatsappButton}
-        onPress={() => console.log("WhatsApp icon pressed")}
+        onPress={handleWhatsAppPress}
       >
         <Ionicons name="logo-whatsapp" size={32} color="#ffffff" />
       </TouchableOpacity>
@@ -123,6 +169,11 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
     marginTop: 15,
+  },
+  // ✅ AGREGAR: Estilo para botón disabled
+  logoutButtonDisabled: {
+    opacity: 0.6,
+    backgroundColor: "#d97706", // Un poco más oscuro
   },
   logoutText: {
     color: "#fff",

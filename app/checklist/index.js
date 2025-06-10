@@ -20,10 +20,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ActionButton from "../components/ActionButton";
-import { getFormularioChecklist, postChecklistVehiculo } from "../api/urls"; // Import your API function
+import { getFormularioChecklist, postChecklistVehiculo } from "../api/urls";
 import * as ImagePicker from "expo-image-picker";
-import * as ImageManipulator from 'expo-image-manipulator'; // Asegúrate de que esté importado
-import * as FileSystem from 'expo-file-system'; // Asegúrate de que esté importado
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
+import { useToast } from "../hooks/useToast";
+import Toast from "../components/Toast";
 
 const { height, width } = Dimensions.get("window");
 
@@ -44,105 +46,6 @@ const formatBytes = (bytes, decimals = 2) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
-const Toast = ({ visible, message, type = "success", onHide }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(-20)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      const timer = setTimeout(() => {
-        hideToast();
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [visible]);
-
-  const hideToast = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: -20,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      if (onHide) onHide();
-    });
-  };
-
-  const getToastBackgroundColor = () => {
-    switch (type) {
-      case "success":
-        return "#10b981";
-      case "warning":
-        return "#f59e0b";
-      case "error":
-        return "#ef4444";
-      default:
-        return "#3b82f6";
-    }
-  };
-
-  const getToastIcon = () => {
-    switch (type) {
-      case "success":
-        return "checkmark-circle";
-      case "warning":
-        return "alert-circle";
-      case "error":
-        return "close-circle";
-      default:
-        return "information-circle";
-    }
-  };
-
-  if (!visible) return null;
-
-  return (
-    <Animated.View
-      style={[
-        styles.toast,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY }],
-          backgroundColor: getToastBackgroundColor(),
-        },
-      ]}
-    >
-      <View style={styles.toastContent}>
-        <Ionicons
-          name={getToastIcon()}
-          size={20}
-          color="white"
-          style={styles.toastIcon}
-        />
-        <Text style={styles.toastMessage} numberOfLines={2}>
-          {message}
-        </Text>
-      </View>
-      <TouchableOpacity style={styles.toastCloseButton} onPress={hideToast}>
-        <Ionicons name="close" size={16} color="white" />
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
 const MAX_BINARY_SIZE_BYTES = 3 * 1024 * 1024; // 3MB en bytes (para que Base64 sea ~4MB)
 
 const CheckList = ({
@@ -152,25 +55,21 @@ const CheckList = ({
   apiKey,
   idChecklistForm,
   idUser,
-  // Ensure Id_assignment and Id_costcenter are available, e.g., via vehicle prop or dedicated props
+  onChecklistComplete,
 }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [checklistForm, setChecklistForm] = useState(null);
   const [isLoadingForm, setIsLoadingForm] = useState(false);
   const [fetchFormError, setFetchFormError] = useState(null);
-  const [checkItems, setCheckItems] = useState({}); // Stores { [Id_checklistconcept]: Id_valuechecklistconcept }
+  const [checkItems, setCheckItems] = useState({});
   const [observations, setObservations] = useState("");
-  const [expandedItem, setExpandedItem] = useState(null); // Stores Id_checklistconcept of expanded item
-
-  const [selectedImages, setSelectedImages] = useState([]); // Nuevo estado para las imágenes
-  const [isUploadingImages, setIsUploadingImages] = useState(false); // Estado para loading de upload
+  const [expandedItem, setExpandedItem] = useState(null);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isSendingChecklist, setIsSendingChecklist] = useState(false);
+  const [imageError, setImageError] = useState(false); // ✅ AGREGAR: Estado para manejar errores de imagen
 
-  const [toast, setToast] = useState({
-    visible: false,
-    message: "",
-    type: "success",
-  });
+  const { toast, showToast, hideToast } = useToast();
 
   const scrollViewRef = useRef(null);
   const animations = useMemo(
@@ -180,10 +79,6 @@ const CheckList = ({
     }),
     []
   );
-
-  const showToast = (message, type = "success") => {
-    setToast({ visible: true, message, type });
-  };
 
   useEffect(() => {
     Animated.parallel([
@@ -219,21 +114,19 @@ const CheckList = ({
           });
           if (response && response.Data && response.Data.length > 0) {
             const form = response.Data[0];
-            // Filter concepts based on To_daily_checklist and Status
             form.ChecklistFormConcepts = form.ChecklistFormConcepts.filter(
               (concept) =>
                 concept.To_daily_checklist === "S" && concept.Status === "S"
             );
 
             setChecklistForm(form);
-            // Initialize checkItems with the first valid value for each concept
             const initialItems = {};
             form.ChecklistFormConcepts.forEach((concept) => {
               if (concept.Validvalues && concept.Validvalues.length > 0) {
                 initialItems[concept.Id_checklistconcept] =
                   concept.Validvalues[0].Id_valuechecklistconcept;
               } else {
-                initialItems[concept.Id_checklistconcept] = null; // Or handle as error/no options
+                initialItems[concept.Id_checklistconcept] = null;
               }
             });
             setCheckItems(initialItems);
@@ -253,6 +146,16 @@ const CheckList = ({
       fetchForm();
     }
   }, [apiBase, apiKey, idChecklistForm]);
+
+  // ✅ AGREGAR: Funciones para manejar la imagen del vehículo
+  const handleImageError = () => {
+    console.log("Error loading vehicle image:", vehicle.fileUrlVehicleImage);
+    setImageError(true);
+  };
+
+  const handleImageLoad = () => {
+    setImageError(false);
+  };
 
   // Nueva función para seleccionar imágenes
   const selectImages = async () => {
@@ -276,7 +179,7 @@ const CheckList = ({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        quality: 1.0, // Obtener la mejor calidad posible, manipularemos después si es necesario
+        quality: 1.0,
         selectionLimit: remainingSlots,
       });
 
@@ -290,21 +193,11 @@ const CheckList = ({
             let currentHeight = asset.height;
             let manipulated = false;
 
-            // 1. Verificar tamaño del archivo y manipular si excede MAX_BINARY_SIZE_BYTES
             if (currentFileSize && currentFileSize > MAX_BINARY_SIZE_BYTES) {
-              showToast(
-                `Imagen ${asset.fileName || `seleccionada ${index + 1}`} (${formatBytes(currentFileSize)}) excede ${formatBytes(MAX_BINARY_SIZE_BYTES)}. Intentando reducir...`,
-                "warning",
-                3500 // Duración del toast
-              );
               try {
-                // Intentar reducir calidad y/o dimensiones.
-                // 'compress' (0-1): 0.7 es una compresión moderada.
-                // 'resize': Redimensionar si es muy grande, manteniendo aspecto.
-                // Puedes ajustar estos valores.
                 const manipResult = await ImageManipulator.manipulateAsync(
                   asset.uri,
-                  [{ resize: { width: Math.min(currentWidth, 1920) } }], // No agrandar, máx ancho 1920px
+                  [{ resize: { width: Math.min(currentWidth, 1920) } }],
                   { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
                 );
                 currentUri = manipResult.uri;
@@ -321,7 +214,7 @@ const CheckList = ({
                        "error",
                        4000
                      );
-                     return null; // Omitir si sigue siendo muy grande
+                     return null;
                   }
                    showToast(
                     `Imagen ${asset.fileName || `seleccionada ${index + 1}`} reducida a ${formatBytes(currentFileSize)}.`,
@@ -330,26 +223,23 @@ const CheckList = ({
                   );
                 } else {
                   console.warn("No se pudo obtener el tamaño del archivo manipulado para:", asset.fileName);
-                  // Si no se puede obtener el nuevo tamaño, y el original era muy grande, omitir.
                   return null;
                 }
               } catch (manipError) {
                 console.error("Error manipulating image:", asset.fileName, manipError);
                 showToast(`Error al reducir la imagen ${asset.fileName || `seleccionada ${index + 1}`}. No será añadida.`, "error");
-                return null; // Omitir si la manipulación falla y el original era grande
+                return null;
               }
             }
 
-            // 2. Convertir a Base64 la imagen (original o manipulada)
             let base64Data = null;
             try {
               base64Data = await FileSystem.readAsStringAsync(currentUri, {
                 encoding: FileSystem.EncodingType.Base64,
               });
             } catch (e) {
-    
               showToast(`Error al procesar la imagen ${asset.fileName || `seleccionada ${index + 1}`}.`, "error");
-              return null; // Omitir si hay error en la conversión
+              return null;
             }
 
             return {
@@ -357,7 +247,7 @@ const CheckList = ({
               uri: currentUri,
               type: asset.type || "image/jpeg",
               fileName: asset.fileName || `image_${Date.now()}_${index}.jpg`,
-              fileSize: currentFileSize, // Tamaño del archivo (original o manipulado) ANTES de Base64
+              fileSize: currentFileSize,
               width: currentWidth,
               height: currentHeight,
               base64: base64Data,
@@ -381,13 +271,11 @@ const CheckList = ({
     }
   };
 
-  // Función para eliminar una imagen seleccionada
   const removeImage = (imageId) => {
     setSelectedImages((prev) => prev.filter((img) => img.id !== imageId));
     showToast("Foto eliminada", "success");
   };
 
-  // Función para limpiar todas las imágenes
   const clearAllImages = () => {
     setSelectedImages([]);
     showToast("Todas las fotos eliminadas", "success");
@@ -407,7 +295,6 @@ const CheckList = ({
     );
 
     if (concept && value) {
-      // Simplified toast message, adapt as needed
       showToast(
         `${concept.Description} actualizado a ${value.Description}`,
         "success"
@@ -455,8 +342,8 @@ const CheckList = ({
     }
 
     const idAssignment = vehicle.id; 
-    const idCostcenter = vehicle.rateCode; 
-
+    const idCostcenter = vehicle.idCostcenter; 
+    console.log("COST CENTER", idCostcenter);
     if (idAssignment == null || idCostcenter == null) {
       showToast("Falta ID de asignación o centro de costo.", "error");
       console.error("Missing Id_assignment or Id_costcenter:", {
@@ -468,64 +355,102 @@ const CheckList = ({
 
     setIsSendingChecklist(true);
 
-    // 1. Prepare CheckListDetail
     const checkListDetailArray = Object.keys(checkItems).map((conceptId) => ({
       Id_checklistconcept: parseInt(conceptId, 10),
       Id_valuechecklistconcept: checkItems[conceptId],
       "Observations ": "NA", 
     }));
 
-    // 2. Prepare Attachments - ASEGURARSE DE ENVIAR BASE64
     const attachmentsArray = selectedImages.map((image) => ({
       Source_subtype: "I",
       File_name: image.fileName || `image_${Date.now()}.jpg`, 
       File_base64: image.base64, 
     }));
 
-    // 3. Format Date_checklist
     const currentDate = new Date();
     const day = String(currentDate.getDate()).padStart(2, "0");
     const month = String(currentDate.getMonth() + 1).padStart(2, "0"); 
     const year = currentDate.getFullYear();
     const formattedDate = `${day}-${month}-${year}`; 
 
-    // 4. Construct the main payload
     const checklistPayload = {
-      apiBase, 
-      apiKey, 
-      Id_assignment: idAssignment,
-      Id_checklistform: checklistForm.Id_checklistform, 
-      Id_vehicle: vehicle.vehicleId, 
-      Id_costcenter: idCostcenter,
+      Id_assignment: parseInt(idAssignment, 10), 
+      Id_checklistform: parseInt(checklistForm.Id_checklistform, 10), 
+      Id_vehicle: parseInt(vehicle.vehicleId, 10), 
+      Id_costcenter: parseInt(idCostcenter, 10), 
       Date_checklist: formattedDate,
-      Id_creator: idUser,
+      Id_creator: parseInt(idUser, 10), 
+      Comments: observations || "NA",
       CheckListDetail: checkListDetailArray,
       Attachments: attachmentsArray,
-      Comment: observations || "NA", 
     };
 
-    try {
-      console.log("Sending checklist payload:", checklistPayload.Comment);
-      console.log("attachments:", checklistPayload.Attachments);
-      const result = await postChecklistVehiculo(checklistPayload);
+    console.log("Validation check:", {
+      Id_assignment: typeof checklistPayload.Id_assignment,
+      Id_checklistform: typeof checklistPayload.Id_checklistform,
+      Id_vehicle: typeof checklistPayload.Id_vehicle,
+      Id_costcenter: typeof checklistPayload.Id_costcenter,
+      Date_checklist: typeof checklistPayload.Date_checklist,
+      Id_creator: typeof checklistPayload.Id_creator,
+      CheckListDetailLength: checklistPayload.CheckListDetail.length,
+      AttachmentsLength: checklistPayload.Attachments.length
+    });
 
-      // console.log("Checklist Payload:", checklistPayload); // Ya se logueó arriba
-      console.log("response checklist :", result.Mensaje.Tipo);
-      if (result.Mensaje.Tipo == "E") {
+    try {
+      console.log("Sending checklist payload:", checklistPayload.Comments); // ✅ CORREGIDO: era .Comment
+      console.log ("id ASSSIGNMENT " , checklistPayload.Id_assignment); 
+      console.log ("id CHECKLIST FORM " , checklistPayload.Id_checklistform);
+      console.log ("id VEHICLE " , checklistPayload.Id_vehicle);
+      console.log ("id COST CENTER " , checklistPayload.Id_costcenter);
+      console.log ("Date CHECKLIST " , checklistPayload.Date_checklist);
+      console.log ("Id CREATOR " , checklistPayload.Id_creator);
+      console.log("CheckListDetail:", checklistPayload.CheckListDetail);
+      console.log("Comment:", checklistPayload.Comments);
+      
+      const result = await postChecklistVehiculo(checklistPayload, apiBase, apiKey);
+
+      console.log("response checklist :", result.Mensaje);
+      
+      // ✅ CORREGIDO: Verificar que result.Mensaje existe antes de acceder a .Tipo
+      if (result.Mensaje && result.Mensaje.Tipo == "E") {
+        console.error("Error sending checklist:", result.Mensaje);
         showToast(
+          result.Mensaje.Description || 
           result.message ||
-            "Error al enviar el checklist, por favor consulte a su administrador",
+          "Error al enviar el checklist, por favor consulte a su administrador",
           "error"
         );
-        // No olvides setIsSendingChecklist(false) en caso de error si no está en un finally
         return; 
       }
-      showToast("Checklist enviado exitosamente", "success");
+      
+      // ✅ ÉXITO: Mostrar toast y actualizar lista
+      showToast("✅ Checklist enviado exitosamente", "success", 3000);
+      
+      // ✅ AGREGAR: Llamar callback para refrescar vehículos
+      if (onChecklistComplete) {
+        onChecklistComplete();
+      }
+      
+      // Reset state after successful submission
+      setCheckItems({});
+      setObservations("");
+      setSelectedImages([]);
+      setExpandedItem(null);
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+      }
+      
+      // ✅ DELAY: Cerrar modal después de mostrar toast
+      setTimeout(() => {
+        handleClose();
+      }, 2000); // 2 segundos para que vea el toast
+      
     } catch (error) {
       console.error("Error sending checklist:", error);
       showToast(
-        `Error al enviar: ${error.message || "Error desconocido"}`,
-        "error"
+        `❌ Error al enviar: ${error.message || "Error desconocido"}`,
+        "error",
+        4000
       );
     } finally {
       setIsSendingChecklist(false);
@@ -545,43 +470,6 @@ const CheckList = ({
     return selectedValue ? selectedValue.Description : "Seleccionar";
   };
 
-  // Adapt getStatusIcon and getStatusColors to use Validvalue.Description
-  /*
-  const getStatusIcon = (valueDescription) => {
-    // Example mapping, adjust based on your actual value descriptions
-    if (valueDescription?.toLowerCase().includes("buen")) {
-      return (
-        <Ionicons
-          name="checkmark-circle"
-          size={18}
-          color="#16a34a"
-          style={{ marginRight: 4 }}
-        />
-      );
-    } else if (valueDescription?.toLowerCase().includes("mal")) {
-      return (
-        <Ionicons
-          name="close-circle"
-          size={18}
-          color="#dc2626"
-          style={{ marginRight: 4 }}
-        />
-      );
-    } else if (valueDescription && valueDescription !== "Seleccionar") {
-      // For "No posee" or other neutral/regular states
-      return (
-        <Ionicons
-          name="alert-circle"
-          size={18}
-          color="#d97706"
-          style={{ marginRight: 4 }}
-        />
-      );
-    }
-    return null;
-  };
-  */
-
   if (!isVisible || !vehicle) {
     return null;
   }
@@ -594,7 +482,8 @@ const CheckList = ({
         visible={toast.visible}
         message={toast.message}
         type={toast.type}
-        onHide={() => setToast((prev) => ({ ...prev, visible: false }))}
+        duration={toast.duration}
+        onHide={hideToast}
       />
 
       <Pressable style={styles.overlayPressable} onPress={handleClose}>
@@ -633,6 +522,7 @@ const CheckList = ({
                 </Text>
               </View>
 
+              {/* ✅ CAMBIO: LinearGradient con imagen real del vehículo */}
               <LinearGradient
                 colors={["#293e5d", "#17335C"]}
                 start={{ x: 0, y: 0 }}
@@ -640,13 +530,16 @@ const CheckList = ({
                 style={styles.vehicleCard}
               >
                 <View style={styles.vehicleIconContainer}>
-                  {vehicle.imageUrl ? (
+                  {vehicle.fileUrlVehicleImage && !imageError ? (
                     <Image
-                      source={vehicle.imageUrl}
-                      resizeMethod="resize"
+                      source={{ uri: vehicle.fileUrlVehicleImage }}
+                      style={styles.vehicleImage}
+                      onError={handleImageError}
+                      onLoad={handleImageLoad}
                       resizeMode="cover"
                     />
                   ) : (
+                    // ✅ Fallback: Mostrar ícono si no hay imagen o hay error
                     <Ionicons name="car-sport" size={40} color="#fff" />
                   )}
                 </View>
@@ -732,7 +625,6 @@ const CheckList = ({
                       {expandedItem === concept.Id_checklistconcept && (
                         <View style={styles.dropdownContainer}>
                           {concept.Validvalues.map((value) => {
-                            // Only render the TouchableOpacity if value.Description is not null
                             if (value.Description != null) {
                               return (
                                 <TouchableOpacity
@@ -746,17 +638,13 @@ const CheckList = ({
                                   }
                                   activeOpacity={0.7}
                                 >
-                                  {/* You can add icons for each valid value if needed */}
-                                  {/* <View style={styles.dropdownIconContainer}>
-                                    <Ionicons name="ellipse-outline" size={20} color="#334155" />
-                                  </View> */}
                                   <Text style={styles.dropdownTextNeutral}>
                                     {value.Description}
                                   </Text>
                                 </TouchableOpacity>
                               );
                             }
-                            return null; // Return null if description is null, so nothing is rendered for this item
+                            return null;
                           })}
                         </View>
                       )}
@@ -785,7 +673,6 @@ const CheckList = ({
                   </Text>
                 </View>
 
-                {/* Contenedor de imágenes seleccionadas con FlatList */}
                 {selectedImages.length > 0 && (
                   <View style={styles.selectedImagesContainer}>
                     <FlatList
@@ -818,7 +705,7 @@ const CheckList = ({
                       )}
                       keyExtractor={(item) => item.id.toString()}
                       numColumns={3}
-                      scrollEnabled={false} // <--- ADD THIS PROP
+                      scrollEnabled={false}
                       
                     />
 
@@ -834,7 +721,6 @@ const CheckList = ({
                   </View>
                 )}
 
-                {/* Botón para seleccionar imágenes */}
                 <TouchableOpacity
                   style={[
                     styles.uploadContainer,
@@ -885,11 +771,11 @@ const CheckList = ({
                   disabled={
                     isLoadingForm || !!fetchFormError || isSendingChecklist
                   }
-                  loading={isSendingChecklist} // Assuming your ActionButton supports a loading prop
+                  loading={isSendingChecklist}
                 />
                 <ActionButton
                   title="Cancelar"
-                  iconName="close" // Make sure this icon exists or change it
+                  iconName="close"
                   onPress={handleClose}
                   colors={["#f43f5e", "#dc2626"]}
                   style={styles.cancelButton}
@@ -1012,14 +898,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "rgba(255, 255, 255, 0.1)", // ✅ AGREGAR: Fondo semi-transparente
+  },
+  // ✅ AGREGAR: Estilo para la imagen del vehículo
+  vehicleImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 8,
   },
   vehicleInfoContent: {
-    flex: 1, // Take remaining space
+    flex: 1,
   },
   vehicleCardTitle: {
     color: "white",
     fontSize: 18,
-    fontWeight: "700", // Bold title
+    fontWeight: "700",
   },
   vehicleInfo: {
     color: "rgba(255,255,255,0.8)", // Slightly transparent white for sub-info
@@ -1028,11 +923,10 @@ const styles = StyleSheet.create({
   },
   checklistCard: {
     backgroundColor: "white",
-    borderRadius: 10, // Consistent border radius
-    padding: 10, // Reduced padding for a tighter look if many items
+    borderRadius: 10,
+    padding: 10,
     marginBottom: 24,
     ...Platform.select({
-      // Standard shadow for cards
       ios: {
         shadowColor: "#0f172a",
         shadowOffset: { width: 0, height: 4 },
@@ -1247,49 +1141,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     flexShrink: 1,
   },
-  toast: {
-    position: "absolute",
-    top: Platform.OS === "ios" ? 50 : 30, // Adjust for status bar
-    left: 20,
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#3b82f6", // Default blue, will be overridden by type
-    borderRadius: 12, // More rounded
-    paddingVertical: 10, // Vertical padding
-    paddingHorizontal: 16, // Horizontal padding
-    zIndex: 9999, // Ensure toast is on top
-    ...Platform.select({
-      // Platform-specific shadow for toast
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  toastContent: {
-    flex: 1, // Allow message to take available space
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  toastIcon: {
-    marginRight: 10,
-  },
-  toastMessage: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "500",
-    flexShrink: 1, // Allow message to wrap if long
-  },
-  toastCloseButton: {
-    padding: 4, // Make close icon easier to tap
-  },
   uploadHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1310,23 +1161,21 @@ const styles = StyleSheet.create({
   selectedImagesContainer: {
     marginBottom: 16,
   },
-
-  // NUEVOS ESTILOS PARA FLATLIST GRID
   imageGridItem: {
-    flex: 1, // Para que las columnas se distribuyan
-    margin: 4, // Espacio alrededor de cada imagen
-    aspectRatio: 1, // Para hacer las imágenes cuadradas
-    position: "relative", // Para el posicionamiento absoluto del botón de eliminar
+    flex: 1,
+    margin: 4,
+    aspectRatio: 1,
+    position: "relative",
     borderRadius: 8,
-    overflow: "hidden", // Para que el borderRadius afecte a la imagen
-    backgroundColor: "#f3f4f6", // Fondo mientras carga
+    overflow: "hidden",
+    backgroundColor: "#f3f4f6",
   },
   removeImageButton: {
     position: "absolute",
-    top: 4, // Ajusta la posición del botón
-    right: 4, // Ajusta la posición del botón
-    backgroundColor: "rgba(255, 255, 255, 0.7)", // Fondo semitransparente
-    borderRadius: 12, // Botón circular
+    top: 4,
+    right: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    borderRadius: 12,
     width: 24,
     height: 24,
     justifyContent: "center",
@@ -1365,7 +1214,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 4,
     borderRadius: 4,
-    alignItems: 'center', // Centrar el texto si es corto
+    alignItems: 'center',
   },
   imageSizeText: {
     color: 'white',

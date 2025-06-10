@@ -31,7 +31,7 @@ export async function getVehiculo({ apiBase, apiKey, idVehiculo }) {
       "Content-Type": "application/json",
     },
   });
-
+  console.log("URL GetVehiculo:", url);
 
   if (!response.ok) {
     throw new Error(`Error al obtener el vehículo: ${response.status}`);
@@ -180,32 +180,12 @@ export async function postDevolucionAsignacion({
   return data;
 }
 
-export async function postChecklistVehiculo({
-  apiBase,
-  apiKey,
-  Id_assignment,
-  Id_checklistform,
-  Id_vehicle,
-  Id_costcenter,
-  Date_checklist,
-  Id_creator,
-  CheckListDetail,
-  Comment,
-  Attachments
-}) {
+export async function postChecklistVehiculo(payload, apiBase, apiKey) {
   // Construye la URL
   const url = `${apiBase.replace(/\/$/, "")}/Api/${apiKey}/ChecklistVehiculo/PostChecklistVehiculo`;
 
-  const payload = {
-    Id_assignment,
-    Id_checklistform,
-    Id_vehicle,
-    Id_costcenter,
-    Date_checklist,
-    Id_creator,
-    CheckListDetail,
-    Attachments,
-  };
+  console.log("URL PostChecklistVehiculo:", url);
+  console.log("Payload being sent:", JSON.stringify(payload, null, 2));
 
   const response = await fetch(url, {
     method: "POST",
@@ -216,25 +196,54 @@ export async function postChecklistVehiculo({
     body: JSON.stringify(payload),
   });
 
+  console.log("Response PostChecklistVehiculo Status:", response.status);
+  console.log("Response PostChecklistVehiculo Headers:", Object.fromEntries(response.headers.entries()));
+
   if (!response.ok) {
     let errorBody = null;
+    let rawErrorText = null;
+    
     try {
-      errorBody = await response.json();
+      // Primero intenta obtener el texto plano
+      rawErrorText = await response.text();
+      console.log("Raw error response:", rawErrorText);
+      
+      // Luego intenta parsearlo como JSON
+      if (rawErrorText.trim().startsWith('{')) {
+        errorBody = JSON.parse(rawErrorText);
+      }
     } catch (e) {
-      // Ignore if error response is not JSON
+      console.error("Error parsing response body:", e);
+      console.log("Raw response was:", rawErrorText);
     }
+    
     console.error("Error Body PostChecklistVehiculo:", errorBody);
     throw new Error(
-      `Error al enviar el checklist del vehículo: ${response.status} ${response.statusText}${errorBody ? ` - ${JSON.stringify(errorBody)}` : ''}`
+      `Error al enviar el checklist del vehículo: ${response.status} ${response.statusText}${rawErrorText ? ` - ${rawErrorText.substring(0, 500)}` : ''}`
     );
   }
 
   // Handle cases where the response might be empty (e.g., 204 No Content)
   if (response.status === 204) {
-    return null; 
+    return { success: true, message: "Checklist enviado exitosamente" };
   }
 
   const data = await response.json();
+  console.log("Response Data PostChecklistVehiculo:", data);
+  
+  // Log individual payload fields for debugging
+  console.log("Payload details:", {
+    Id_assignment: payload.Id_assignment,
+    Id_checklistform: payload.Id_checklistform,
+    Id_vehicle: payload.Id_vehicle,
+    Id_costcenter: payload.Id_costcenter,
+    Date_checklist: payload.Date_checklist,
+    Id_creator: payload.Id_creator,
+    CheckListDetail: payload.CheckListDetail,
+    Comments: payload.Comments,
+    AttachmentsCount: payload.Attachments ? payload.Attachments.length : 0
+  });
+
   return data;
 }
 

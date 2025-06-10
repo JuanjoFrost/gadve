@@ -29,6 +29,7 @@ import Footer from "./Footer";
 
 const VehicleList = ({ userId, apiBase, apiKey }) => {
   const [vehicles, setVehicles] = useState([]);
+  const [displayVehicles, setDisplayVehicles] = useState([]);
   const [loading, setLoading] = useState(true); // Para la carga inicial
   const [refreshing, setRefreshing] = useState(false); // Para "Pull to Refresh"
   const [modalVisible, setModalVisible] = useState(false);
@@ -46,6 +47,8 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
   });
 
   const mapApiDataToVehicle = (apiItem) => {
+    console.log(`--- VEHICLELIST: mapApiDataToVehicle INVOCADA con apiItem: ${JSON.stringify(apiItem)} ---`);
+    // Asignar un estado por defecto
     let status = "available";
     // let actions = ["viewMore"]; // Ignorando 'actions' según la instrucción
 
@@ -152,6 +155,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       
       // Nueva propiedad para controlar la visibilidad del botón de checklist
       displayChecklistButton: displayChecklistButton,
+      IdChecklistToday : apiItem.Id_checklist_today, // Asumiendo que este campo indica el checklist del día actual
 
       checklistBeginDate: apiItem.Checklist_begin_date,
       idChecklistForm: apiItem.Id_checklistform,
@@ -166,6 +170,8 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       timeReturning: apiItem.Time_returning,
       possibleDateReturn: apiItem.Possible_date_return,
       possibleTimeReturn: apiItem.Possible_time_return,
+
+      fileUrlVehicleImage: apiItem.File_url_img,
     };
   };
 
@@ -183,9 +189,11 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       if (Array.isArray(dataToMap)) {
         const mappedVehicles = dataToMap.map(mapApiDataToVehicle);
         setVehicles(mappedVehicles);
+        setDisplayVehicles(mappedVehicles); // También actualizar displayVehicles
       } else {
         console.error("La respuesta de la API no es un array:", dataToMap);
         setVehicles([]);
+        setDisplayVehicles([]); // Asegurarse que displayVehicles también esté vacío
         Alert.alert(
           "Error de Datos",
           "No se pudo procesar la información de vehículos."
@@ -198,9 +206,9 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
         "No se pudieron cargar los vehículos. Intenta de nuevo más tarde."
       );
       setVehicles([]);
+      setDisplayVehicles([]); // Asegurarse que displayVehicles también esté vacío
     } finally {
-      // setLoading(false); // Esto es para la carga inicial
-      // setRefreshing(false); // Asegurarse de que refreshing se maneje en onRefresh
+      
     }
   };
 
@@ -471,6 +479,18 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
     );
   };
 
+  // ✅ AGREGAR: Función para refrescar vehículos
+  const refreshVehicles = async () => {
+    console.log("Refreshing vehicles after checklist...");
+    await onRefresh(); // Reutilizar tu función existente de refresh
+  };
+
+  // ✅ AGREGAR: Callback para cuando se complete el checklist
+  const handleChecklistComplete = () => {
+    console.log("Checklist completed, refreshing vehicles...");
+    refreshVehicles();
+  };
+
   if (loading && !vehicles.length) {
     return (
       <View style={styles.loadingContainer}>
@@ -490,11 +510,11 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
   }
 
   // Filter vehicles to exclude those with approvalStatusAssignment === "R"
-  const displayVehicles = vehicles.filter(
+  const filteredVehicles = vehicles.filter(
     (vehicle) => vehicle.approvalStatusAssignment !== "R"
   );
 
-  if (!displayVehicles.length && !loading) {
+  if (!filteredVehicles.length && !loading) {
     return (
       <View style={styles.loadingContainer}>
         <View style={styles.carIcon}>
@@ -521,7 +541,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
         <Text style={styles.headerTitle}>Mis Vehículos</Text>
       </View>
       <FlatList
-        data={displayVehicles} 
+        data={filteredVehicles} 
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <VehicleCard
@@ -573,7 +593,11 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
         transparent={true}
         onRequestClose={closeModalCheckList}
       >
-        {selectedVehicle && (
+        { selectedVehicle &&
+        selectedVehicle.requiresChecklistDaily === "S" &&
+          selectedVehicle.approvalStatusAssignment == "A" &&
+          selectedVehicle.dateReturning == null &&
+          selectedVehicle.displayChecklistButton && (
           <CheckList
             apiBase={apiBase}
             apiKey={apiKey}
@@ -581,6 +605,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
             vehicle={selectedVehicle}
             onClose={closeModalCheckList}
             idUser={userId}
+            onChecklistComplete={handleChecklistComplete} // ✅ AGREGAR: Callback
           />
         )}
       </Modal>

@@ -15,7 +15,8 @@ import {
   Platform,
   KeyboardAvoidingView,
   Alert,
-  BackHandler, // Import BackHandler
+  BackHandler,
+  ActivityIndicator, // ✅ AGREGAR: ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -43,6 +44,7 @@ const LoginScreen = () => {
   const [mostrarClave, setMostrarClave] = useState(false);
   const [empresasFiltradas, setEmpresasFiltradas] = useState([]);
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false); // ✅ AGREGAR: Estado de loading
   const alturaAnimada = useRef(new Animated.Value(0)).current;
   const [empresas, setEmpresas] = useState([]);
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState(null);
@@ -117,45 +119,54 @@ const LoginScreen = () => {
     return true;
   };
 
+  // ✅ MEJORAR: Función handleLogin con loading
   const handleLogin = async () => {
-  if (!empresaSeleccionada || !usuario || !clave) {
-    Alert.alert("Error", "Por favor completa todos los campos.");
-    return;
-  }
+    if (isLoggingIn) return; // Prevenir múltiples clicks
 
-  try {
-    const apiBase = empresaSeleccionada.Url_api_base;
-    const apiKey = empresaSeleccionada.Url_api_key;
-    
-    console.log("API Base:", apiBase);
-    console.log("API Key:", apiKey);
-    const result = await postLogin({
-      apiBase,
-      apiKey,
-      usuario,
-      clave,
-    });
-    console.log(result);
-    
-    if (result.Mensaje?.Tipo === "S" && result.Data?.length > 0) {
-      // Login correcto
-      // Puedes guardar el usuario en contexto, AsyncStorage, etc.
-      router.replace({
-        pathname: "/home",
-        params: {
-          usuario,
-          apiBase,
-          apiKey,
-          userData: JSON.stringify(result.Data[0]),
-        },
-      });
-    } else {
-      Alert.alert("Error", result.Mensaje?.Detalle || "Credenciales incorrectas");
+    if (!empresaSeleccionada || !usuario || !clave) {
+      Alert.alert("Error", "Por favor completa todos los campos.");
+      return;
     }
-  } catch (e) {
-    Alert.alert("Error", "No se pudo iniciar sesión");
-  }
-};
+
+    setIsLoggingIn(true); // ✅ ACTIVAR: Estado de loading
+
+    try {
+      const apiBase = empresaSeleccionada.Url_api_base;
+      const apiKey = empresaSeleccionada.Url_api_key;
+      
+      console.log("API Base:", apiBase);
+      console.log("API Key:", apiKey);
+      const result = await postLogin({
+        apiBase,
+        apiKey,
+        usuario,
+        clave,
+      });
+      console.log(result);
+      
+      if (result.Mensaje?.Tipo === "S" && result.Data?.length > 0) {
+        // ✅ ÉXITO: Pequeña pausa para mostrar el ícono de éxito
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Login correcto
+        router.replace({
+          pathname: "/home",
+          params: {
+            usuario,
+            apiBase,
+            apiKey,
+            userData: JSON.stringify(result.Data[0]),
+          },
+        });
+      } else {
+        Alert.alert("Error", result.Mensaje?.Detalle || "Credenciales incorrectas");
+      }
+    } catch (e) {
+      Alert.alert("Error", "No se pudo iniciar sesión");
+    } finally {
+      setIsLoggingIn(false); // ✅ DESACTIVAR: Estado de loading
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -198,12 +209,12 @@ const LoginScreen = () => {
                     value={empresa}
                     onChangeText={setEmpresa}
                     placeholderTextColor="#9ca3af"
+                    editable={!isLoggingIn} // ✅ DESHABILITAR: Input durante loading
                   />
                 </View>
 
                 {/* Lista de sugerencias */}
-                {/* Lista de sugerencias */}
-                {mostrarSugerencias && (
+                {mostrarSugerencias && !isLoggingIn && (
                   <Animated.View
                     style={[
                       styles.suggestionsContainer,
@@ -243,6 +254,7 @@ const LoginScreen = () => {
                   value={usuario}
                   onChangeText={setUsuario}
                   placeholderTextColor="#9ca3af"
+                  editable={!isLoggingIn} // ✅ DESHABILITAR: Input durante loading
                 />
               </View>
 
@@ -258,25 +270,43 @@ const LoginScreen = () => {
                   value={clave}
                   onChangeText={setClave}
                   placeholderTextColor="#9ca3af"
+                  editable={!isLoggingIn} // ✅ DESHABILITAR: Input durante loading
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => setMostrarClave(!mostrarClave)}
+                  disabled={isLoggingIn} // ✅ DESHABILITAR: Eye button durante loading
                 >
                   <Ionicons
                     name={mostrarClave ? "eye-off-outline" : "eye-outline"}
                     size={22}
-                    color="#f97316"
+                    color={isLoggingIn ? "#9ca3af" : "#f97316"}
                   />
                 </TouchableOpacity>
               </View>
 
-              {/* Botón de Ingreso */}
+              {/* ✅ MEJORAR: Botón de Ingreso con loading */}
               <TouchableOpacity
-                style={styles.loginButton}
+                style={[
+                  styles.loginButton,
+                  isLoggingIn && styles.loginButtonDisabled
+                ]}
                 onPress={handleLogin}
+                disabled={isLoggingIn}
+                activeOpacity={isLoggingIn ? 1 : 0.8}
               >
-                <Text style={styles.loginButtonText}>Ingresar</Text>
+                <View style={styles.loginButtonContent}>
+                  {isLoggingIn && (
+                    <ActivityIndicator 
+                      size="small" 
+                      color="#fff" 
+                      style={styles.loginButtonSpinner}
+                    />
+                  )}
+                  <Text style={styles.loginButtonText}>
+                    {isLoggingIn ? "Ingresando..." : "Ingresar"}
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
 
@@ -300,7 +330,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f3f4f6",
-
     justifyContent: "center",
     padding: 15,
     width: "100%",
@@ -337,7 +366,6 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 24,
     shadowColor: "#000",
-
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -410,6 +438,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     marginTop: 8,
+  },
+  // ✅ AGREGAR: Estilo para botón disabled
+  loginButtonDisabled: {
+    opacity: 0.7,
+    backgroundColor: "#1f2a42", // Un poco más claro
+  },
+  // ✅ AGREGAR: Container para contenido del botón
+  loginButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // ✅ AGREGAR: Estilo para spinner
+  loginButtonSpinner: {
+    marginRight: 8,
   },
   loginButtonText: {
     color: "white",

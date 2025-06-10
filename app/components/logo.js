@@ -5,16 +5,11 @@ export default function Logo() {
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
+        {/* ✅ CAMBIO: Usar tu imagen gadve-icon-2.png en lugar del gear */}
         <Image 
-        //assets\images\gear.png
-          source={require('../../assets/images/gear.png')}
-          style={styles.gearImage} 
+          source={require('../../assets/images/gadve-icon-2.png')}
+          style={styles.logoImage} 
         />
-        <View style={styles.colorSections}>
-          <View style={[styles.section, { backgroundColor: '#4CAF50' }]} />
-          <View style={[styles.section, { backgroundColor: '#2196F3' }]} />
-          <View style={[styles.section, { backgroundColor: '#FFEB3B' }]} />
-        </View>
       </View>
       <View style={styles.textContainer}>
         <Text style={styles.text}>G</Text>
@@ -35,24 +30,11 @@ const styles = StyleSheet.create({
   logoContainer: {
     position: 'relative',
   },
-  gearImage: {
+  // ✅ CAMBIO: Nuevo estilo para tu imagen, removido tintColor y colorSections
+  logoImage: {
     width: 32,
     height: 32,
-    tintColor: '#333',
-  },
-  colorSections: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    overflow: 'hidden',
-    flexDirection: 'row',
-  },
-  section: {
-    flex: 1,
-    height: '100%',
+    resizeMode: 'contain', // ✅ AGREGAR: Para mantener proporciones de tu imagen
   },
   textContainer: {
     flexDirection: 'row',
