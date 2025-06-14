@@ -11,37 +11,49 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Drawer = createDrawerNavigator();
 
 const MainLayout = ({ children }) => {
-  // ✅ AGREGAR: Hook del toast
   const { toast, showToast, hideToast } = useToast();
-  
-  // ✅ AGREGAR: Estado para controlar el loading del logout
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // ✅ AGREGAR: Función para WhatsApp
   const handleWhatsAppPress = () => {
     showToast("Funcionalidad en desarrollo. Próximamente.", "info");
   };
 
-  // ✅ MEJORAR: Función para logout con loading
-  const handleLogout = () => {
-    if (isLoggingOut) return; // Prevenir múltiples clicks
-    
+  const handleLogout = async () => {
+    if (isLoggingOut) return; 
+
     setIsLoggingOut(true);
-    
-    setTimeout(() => {
+
+    try {
+      // Limpiar datos de sesión
+      await AsyncStorage.removeItem("usuario");
+      await AsyncStorage.removeItem("empresa");
+      await AsyncStorage.removeItem("apiBase");
+      await AsyncStorage.removeItem("apiKey");
+
+      // IMPORTANTE: NO limpiar las preferencias de login
+      // Las preferencias se mantienen para que el usuario las vea la próxima vez
+      // await clearLoginPreferences(); // ← Esta línea NO debe ejecutarse
+
+      // Simular tiempo de logout
+      setTimeout(() => {
+        setIsLoggingOut(false);
+        router.replace("/login");
+      }, 1500);
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
       setIsLoggingOut(false);
-      router.replace("/login");
-    }, 1500);
+      showToast("Error al cerrar sesión", "error");
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* ✅ AGREGAR: Toast Component */}
+
       <Toast
         visible={toast.visible}
         message={toast.message}
@@ -59,7 +71,7 @@ const MainLayout = ({ children }) => {
             {/* Opciones del menú */}
             <DrawerItemList {...props} />
 
-            {/* ✅ MEJORAR: Botón de logout con loading */}
+            {/* Botón de logout con loading */}
             <TouchableOpacity
               style={[
                 styles.logoutButton,
@@ -120,7 +132,6 @@ const MainLayout = ({ children }) => {
         </Drawer.Screen>
       </Drawer.Navigator>
 
-      {/* Ícono de WhatsApp */}
       <TouchableOpacity
         style={styles.whatsappButton}
         onPress={handleWhatsAppPress}
@@ -170,10 +181,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginTop: 15,
   },
-  // ✅ AGREGAR: Estilo para botón disabled
   logoutButtonDisabled: {
     opacity: 0.6,
-    backgroundColor: "#d97706", // Un poco más oscuro
+    backgroundColor: "#d97706", 
   },
   logoutText: {
     color: "#fff",

@@ -1,11 +1,9 @@
-// LoginScreen.js
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
   ScrollView,
   Animated,
   Dimensions,
@@ -16,26 +14,13 @@ import {
   KeyboardAvoidingView,
   Alert,
   BackHandler,
-  ActivityIndicator, // ✅ AGREGAR: ActivityIndicator
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import Logo from "../components/logo";
 import { getEmpresas, postLogin } from "../api/auth";
-
-// Datos dummy para el autocompletado de empresas
-const empresasDummy = [
-  "Acme Corporation",
-  "Globex",
-  "Soylent Corp",
-  "Initech",
-  "Umbrella Corporation",
-  "Stark Industries",
-  "Wayne Enterprises",
-  "Oscorp",
-  "Cyberdyne Systems",
-  "LexCorp",
-];
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveLoginPreferences, loadLoginPreferences } from "../utils/LoginPreferences";
 
 const LoginScreen = () => {
   const [empresa, setEmpresa] = useState("");
@@ -44,22 +29,20 @@ const LoginScreen = () => {
   const [mostrarClave, setMostrarClave] = useState(false);
   const [empresasFiltradas, setEmpresasFiltradas] = useState([]);
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false); // ✅ AGREGAR: Estado de loading
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true); // Estado para cargar preferencias
   const alturaAnimada = useRef(new Animated.Value(0)).current;
   const [empresas, setEmpresas] = useState([]);
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState(null);
 
   const { width } = Dimensions.get("window");
-  const inputWidth = width - 60; // Considerando márgenes
+  const inputWidth = width - 60;
 
   const router = useRouter();
 
   useEffect(() => {
     const backAction = () => {
-      // Prevent going back from the login screen
-      // You can optionally show an alert or do nothing
-      // Alert.alert("Información", "No puedes volver atrás desde esta pantalla.");
-      return true; // This will prevent the default back action
+      return true; 
     };
 
     const backHandler = BackHandler.addEventListener(
@@ -67,18 +50,45 @@ const LoginScreen = () => {
       backAction
     );
 
-    return () => backHandler.remove(); // Cleanup listener on component unmount
+    return () => backHandler.remove(); 
+  }, []);
+
+  // Cargar empresas y preferencias al iniciar
+  useEffect(() => {
+    const initializeScreen = async () => {
+      try {
+        // Cargar empresas
+        const empresasData = await getEmpresas();
+        setEmpresas(empresasData);
+
+        // Cargar preferencias guardadas
+        const preferences = await loadLoginPreferences();
+        if (preferences.company) {
+          setEmpresa(preferences.company);
+          // Buscar la empresa seleccionada en la lista
+          const empresaEncontrada = empresasData.find(
+            emp => emp.Customer_name === preferences.company
+          );
+          if (empresaEncontrada) {
+            setEmpresaSeleccionada(empresaEncontrada);
+          }
+        }
+        if (preferences.username) {
+          setUsuario(preferences.username);
+        }
+      } catch (error) {
+        Alert.alert("Error", "No se pudieron cargar las empresas, consulte a su administrador");
+      } finally {
+        setIsLoadingPreferences(false);
+      }
+    };
+
+    initializeScreen();
   }, []);
 
   // Filtrar empresas cuando el usuario escribe
   useEffect(() => {
-    getEmpresas()
-      .then(setEmpresas)
-      .catch(() => Alert.alert("Error", "No se pudieron cargar las empresas"));
-  }, []);
-
-  useEffect(() => {
-    if (empresa.length > 0) {
+    if (empresa.length > 0 && empresas.length > 0) {
       const filtradas = empresas.filter((item) =>
         item.Customer_name.toLowerCase().includes(empresa.toLowerCase())
       );
@@ -111,44 +121,47 @@ const LoginScreen = () => {
     cerrarSugerencias();
   };
 
-  const validarLogin = () => {
-    if (!empresa || !usuario || !clave) {
-      Alert.alert("Error", "Por favor completa todos los campos.");
-      return false;
-    }
-    return true;
-  };
-
-  // ✅ MEJORAR: Función handleLogin con loading
+  // Función handleLogin con persistencia de preferencias
   const handleLogin = async () => {
-    if (isLoggingIn) return; // Prevenir múltiples clicks
+    if (isLoggingIn) return;
 
     if (!empresaSeleccionada || !usuario || !clave) {
       Alert.alert("Error", "Por favor completa todos los campos.");
       return;
     }
 
-    setIsLoggingIn(true); // ✅ ACTIVAR: Estado de loading
+    setIsLoggingIn(true);
 
     try {
       const apiBase = empresaSeleccionada.Url_api_base;
       const apiKey = empresaSeleccionada.Url_api_key;
       
-      console.log("API Base:", apiBase);
-      console.log("API Key:", apiKey);
       const result = await postLogin({
         apiBase,
         apiKey,
         usuario,
         clave,
       });
-      console.log(result);
       
       if (result.Mensaje?.Tipo === "S" && result.Data?.length > 0) {
-        // ✅ ÉXITO: Pequeña pausa para mostrar el ícono de éxito
+        // Guardar preferencias de login ANTES de navegar
+        await saveLoginPreferences({
+          company: empresa,
+          username: usuario,
+          apiBase: apiBase,
+          apiKey: apiKey
+        });
+
+        // Guardar datos de sesión
+        await AsyncStorage.setItem("usuario", usuario);
+        await AsyncStorage.setItem("empresa", JSON.stringify(empresaSeleccionada));
+        await AsyncStorage.setItem("apiBase", apiBase);
+        await AsyncStorage.setItem("apiKey", apiKey);
+
+        // Pequeña pausa para mostrar el ícono de éxito
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Login correcto
+        // Navegar a home
         router.replace({
           pathname: "/home",
           params: {
@@ -164,9 +177,19 @@ const LoginScreen = () => {
     } catch (e) {
       Alert.alert("Error", "No se pudo iniciar sesión");
     } finally {
-      setIsLoggingIn(false); // ✅ DESACTIVAR: Estado de loading
+      setIsLoggingIn(false);
     }
   };
+
+  // Mostrar indicador de carga mientras se cargan las preferencias
+  if (isLoadingPreferences) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#17335C" />
+        <Text style={styles.loadingText}>Cargando...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -185,9 +208,6 @@ const LoginScreen = () => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.container}>
-            {/* Logo */}
-         
-
             {/* Formulario */}
             <View style={styles.formContainer}>
               <Text style={styles.formTitle}>Inicia sesión</Text>
@@ -207,9 +227,15 @@ const LoginScreen = () => {
                     style={styles.input}
                     placeholder="Digita tu empresa"
                     value={empresa}
-                    onChangeText={setEmpresa}
+                    onChangeText={(text) => {
+                      setEmpresa(text);
+                      // Resetear empresa seleccionada si el usuario modifica el texto
+                      if (text !== empresaSeleccionada?.Customer_name) {
+                        setEmpresaSeleccionada(null);
+                      }
+                    }}
                     placeholderTextColor="#9ca3af"
-                    editable={!isLoggingIn} // ✅ DESHABILITAR: Input durante loading
+                    editable={!isLoggingIn}
                   />
                 </View>
 
@@ -254,7 +280,7 @@ const LoginScreen = () => {
                   value={usuario}
                   onChangeText={setUsuario}
                   placeholderTextColor="#9ca3af"
-                  editable={!isLoggingIn} // ✅ DESHABILITAR: Input durante loading
+                  editable={!isLoggingIn}
                 />
               </View>
 
@@ -270,12 +296,12 @@ const LoginScreen = () => {
                   value={clave}
                   onChangeText={setClave}
                   placeholderTextColor="#9ca3af"
-                  editable={!isLoggingIn} // ✅ DESHABILITAR: Input durante loading
+                  editable={!isLoggingIn}
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => setMostrarClave(!mostrarClave)}
-                  disabled={isLoggingIn} // ✅ DESHABILITAR: Eye button durante loading
+                  disabled={isLoggingIn}
                 >
                   <Ionicons
                     name={mostrarClave ? "eye-off-outline" : "eye-outline"}
@@ -285,7 +311,7 @@ const LoginScreen = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* ✅ MEJORAR: Botón de Ingreso con loading */}
+              {/* Botón de Ingreso con loading */}
               <TouchableOpacity
                 style={[
                   styles.loginButton,
@@ -333,6 +359,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 15,
     width: "100%",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#17335C",
   },
   logoContainer: {
     flexDirection: "row",
@@ -439,18 +474,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
   },
-  // ✅ AGREGAR: Estilo para botón disabled
   loginButtonDisabled: {
     opacity: 0.7,
-    backgroundColor: "#1f2a42", // Un poco más claro
+    backgroundColor: "#1f2a42", 
   },
-  // ✅ AGREGAR: Container para contenido del botón
   loginButtonContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
-  // ✅ AGREGAR: Estilo para spinner
   loginButtonSpinner: {
     marginRight: 8,
   },
