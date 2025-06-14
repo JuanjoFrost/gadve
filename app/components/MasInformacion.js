@@ -65,38 +65,11 @@ const MasInformacion = ({
         setIsLoadingAssignment(true);
         setFetchAssignmentError(null);
         try {
-          console.log(`Fetching assignment details for ID: ${vehicle.id}`);
           const data = await getDetalleAsignacion({
             apiBase,
             apiKey,
             idAssignment: vehicle.id,
           });
-
-          console.log(
-            "Full response from getDetalleAsignacion (data):",
-            JSON.stringify(data, null, 2)
-          );
-
-          if (
-            data &&
-            data.Data &&
-            data.Data.length > 0 &&
-            data.Data[0].Attachments
-          ) {
-            console.log(
-              "Attachments from data.Data[0].Attachments:",
-              data.Data[0].Attachments
-            );
-          } else if (data && data.Attachments) {
-            console.log(
-              "Attachments from data.Attachments (top level):",
-              data.Attachments
-            );
-          } else {
-            console.log(
-              "Attachments not found in expected locations. Check 'Full response' log above."
-            );
-          }
           setFetchedAssignmentDetails(data);
         } catch (error) {
           console.error("Error fetching assignment details:", error);
@@ -118,31 +91,20 @@ const MasInformacion = ({
         setIsLoadingVehicle(true);
         setFetchVehicleError(null);
         try {
-          console.log(`Fetching vehicle details for ID: ${vehicle.vehicleId}`);
           const data = await getVehiculo({
             apiBase,
             apiKey,
             idVehiculo: vehicle.vehicleId,
           });
-          console.log(
-            "Full response from getVehiculo (data):",
-            JSON.stringify(data, null, 2)
-          );
           if (data && data.Data && data.Data.length > 0) {
             const apiVehicleData = data.Data[0];
-            // Merge the initial vehicle prop data with the data fetched from the API.
-            // Properties from apiVehicleData will overwrite those in the vehicle prop.
+            //Revisar si Attachments está presente en el nivel superior
             setFetchedVehicleDetails({
-              ...(vehicle || {}), // Start with base properties from the vehicle prop
-              ...apiVehicleData,   // Override and add properties from the API response
+              ...(vehicle || {}), // emplieza con los datos del vehículo original
+              ...apiVehicleData,  // mezcla los datos obtenidos de la API
             });
-             // Log attachments if they exist in the API response
-            if (apiVehicleData.Attachments) {
-              console.log("Attachments from getVehiculo:", apiVehicleData.Attachments);
-            }
           } else {
-            setFetchedVehicleDetails(null); // If no data, set to null as per original logic
-            console.log("No vehicle data found or data format unexpected from getVehiculo.");
+            setFetchedVehicleDetails(null); 
           }
         } catch (error) {
           console.error("Error fetching vehicle details:", error);
@@ -157,9 +119,8 @@ const MasInformacion = ({
     }
   }, [vehicle, apiBase, apiKey]);
 
-  // ✅ AGREGAR: Funciones para manejar la imagen
+  //Funciones para manejar la imagen
   const handleImageError = () => {
-    console.log("Error loading vehicle image:", vehicle.imageUrl);
     setImageError(true);
   };
 
@@ -172,36 +133,6 @@ const MasInformacion = ({
   }
 
   const displayVehicle = fetchedVehicleDetails || vehicle;
-
-  const handleDownloadSimple = async () => {
-    try {
-      const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const fileUri = FileSystem.documentDirectory + cleanFileName;
-
-      const downloadResult = await FileSystem.downloadAsync(fileUrl, fileUri);
-
-      if (downloadResult.status === 200) {
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(downloadResult.uri, {
-            mimeType: attachment.MimeType || "application/octet-stream",
-            dialogTitle: `Guardar/Compartir ${fileName}`,
-          });
-        }
-      } else {
-        throw new Error(
-          `Error en la descarga. Status: ${downloadResult.status}`
-        );
-      }
-    } catch (error) {
-      console.error("Error al descargar:", error);
-      Alert.alert(
-        "Error de Descarga",
-        `No se pudo descargar el archivo: ${
-          error.message || "Error desconocido"
-        }`
-      );
-    }
-  };
 
   if (!displayVehicle) {
     return (
@@ -304,7 +235,7 @@ const MasInformacion = ({
             </View>
           )}
 
-          {/* ✅ CAMBIO: Vehicle Specific Header con imagen real */}
+          {/*Vehicle Specific Header con imagen real */}
           <LinearGradient
             colors={["#293e5d", "#17335C"]}
             start={{ x: 0, y: 0 }}
@@ -426,8 +357,23 @@ const MasInformacion = ({
                           Alert.alert("Descargando...", `Descargando ${fileName}. Por favor espera.`);
 
                           const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-                          
-                          if (isImage || isVideo) {
+                          const tempUri = FileSystem.documentDirectory + cleanFileName;
+                        
+                          const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri);
+
+                          if (downloadResult.status === 200) {
+                            const fileInfo = await FileSystem.getInfoAsync(downloadResult.uri);
+
+                            if (!fileInfo.exists || fileInfo.size === 0) {
+                                Alert.alert(
+                                  "Error de Descarga",
+                                  `El archivo "${fileName}" se descargó pero está vacío o no se pudo guardar correctamente. Por favor, verifica la URL o intenta más tarde.`
+                                );
+                                console.error(`File downloaded but is empty or does not exist. URI: ${downloadResult.uri}, Size: ${fileInfo.size}`);
+                                return;
+                            }
+
+                            if (isImage || isVideo) {
                             try {
                               const { status } = await MediaLibrary.requestPermissionsAsync();
                               if (status !== 'granted') {
@@ -519,7 +465,7 @@ const MasInformacion = ({
                                   );
                                 }
                               } else {
-                                throw new Error(`Error en la descarga. Status: ${downloadResult.status}`);
+                                throw new Error(`Error en la descarga. Status: ${downloadResult.status}. Headers: ${JSON.stringify(downloadResult.headers)}`);
                               }
                             } catch (documentError) {
                               console.error('Error descargando documento:', documentError);
@@ -528,6 +474,13 @@ const MasInformacion = ({
                                 `No se pudo descargar ${fileName}. Motivo: ${documentError.message}`
                               );
                             }
+                          }
+                          
+                          } else {
+                            Alert.alert(
+                              "Error de Descarga",
+                              `No se pudo descargar el archivo "${fileName}". Verifica tu conexión a internet e inténtalo nuevamente.`
+                            );
                           }
                         } catch (error) {
                           console.error("Error al descargar:", error);
@@ -628,10 +581,32 @@ const MasInformacion = ({
                           const isVideo = videoExtensions.includes(fileExtension);
 
                           Alert.alert("Descargando...", `Descargando ${fileName}. Por favor espera.`);
-
-                          const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
                           
-                          if (isImage || isVideo) {
+                          const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+                          const tempUri = FileSystem.documentDirectory + cleanFileName;
+                          
+                          const requestOptions = {
+                            headers: {
+                              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                              'Accept': '*/*', 
+                            }
+                          };
+
+                          const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri, requestOptions);
+
+                          if (downloadResult.status === 200) {
+                            const fileInfo = await FileSystem.getInfoAsync(downloadResult.uri);
+
+                            if (!fileInfo.exists || fileInfo.size === 0) {
+                                Alert.alert(
+                                  "Error de Descarga",
+                                  `El archivo "${fileName}" (vehículo) se descargó pero está vacío o no se pudo guardar correctamente. Por favor, verifica la URL, los encabezados de la solicitud o intenta más tarde.`
+                                );
+                                console.error(`File downloaded (vehicle) but is empty or does not exist. URI: ${downloadResult.uri}, Size: ${fileInfo.size}. Headers sent: ${JSON.stringify(requestOptions.headers)}`);
+                                return; 
+                            }
+
+                            if (isImage || isVideo) {
                             try {
                               const { status } = await MediaLibrary.requestPermissionsAsync();
                               if (status !== 'granted') {
@@ -645,23 +620,22 @@ const MasInformacion = ({
                               const tempUri = FileSystem.documentDirectory + cleanFileName;
                               const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri);
 
-                              if (downloadResult.status === 200) {
-                                const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
-                                
-                                let album = await MediaLibrary.getAlbumAsync('Gadve Downloads');
-                                if (album == null) {
-                                  album = await MediaLibrary.createAlbumAsync('Gadve Downloads', asset, false);
-                                } else {
-                                  await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-                                }
+                             
+                                 const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+                              
+                              let album = await MediaLibrary.getAlbumAsync('Gadve Downloads');
+                              if (album == null) {
+                                album = await MediaLibrary.createAlbumAsync('Gadve Downloads', asset, false);
+                              } else {
+                                await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+                              }
+                              
                                 
                                 Alert.alert(
                                   'Descarga exitosa',
                                   `${fileName} se ha guardado en tu galería en el álbum "Gadve Downloads"`
                                 );
-                              } else {
-                                throw new Error(`Error en la descarga. Status: ${downloadResult.status}`);
-                              }
+                             
                             } catch (mediaError) {
                               console.error('Error guardando archivo multimedia:', mediaError);
                               Alert.alert(
@@ -723,7 +697,7 @@ const MasInformacion = ({
                                   );
                                 }
                               } else {
-                                throw new Error(`Error en la descarga. Status: ${downloadResult.status}`);
+                                throw new Error(`Error en la descarga (vehículo). Status: ${downloadResult.status}. Headers: ${JSON.stringify(downloadResult.headers)}`);
                               }
                             } catch (documentError) {
                               console.error('Error descargando documento:', documentError);
@@ -733,11 +707,17 @@ const MasInformacion = ({
                               );
                             }
                           }
+                          } else {
+                            Alert.alert(
+                              "Error de Descarga",
+                              `No se pudo descargar el archivo "${fileName}" (vehículo). Verifica tu conexión a internet e inténtalo nuevamente.`
+                            );
+                          }
                         } catch (error) {
-                          console.error("Error al descargar:", error);
+                          console.error("Error al descargar (vehículo):", error);
                           Alert.alert(
                             "Error de Descarga",
-                            `No se pudo descargar el archivo "${fileName}". Verifica tu conexión a internet e inténtalo nuevamente.\n\nDetalle: ${error.message || "Error desconocido"}`
+                            `No se pudo descargar el archivo "${fileName}" (vehículo). Verifica tu conexión a internet e inténtalo nuevamente.\n\nDetalle: ${error.message || "Error desconocido"}`
                           );
                         }
                       };
@@ -1114,9 +1094,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.1)", // ✅ AGREGAR: Fondo semi-transparente
+    backgroundColor: "rgba(255, 255, 255, 0.1)", 
   },
-  // ✅ AGREGAR: Estilo para la imagen del vehículo
   vehicleImage: {
     width: "100%",
     height: "100%",

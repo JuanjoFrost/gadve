@@ -32,7 +32,6 @@ const ActionButton = ({
 
   const buttonColors = colors;
   
-  // Función de manejo de presión
   const handlePress = () => {
     if (!disabled && !loading && onPress) {
       onPress();
@@ -45,18 +44,17 @@ const ActionButton = ({
       onPress={handlePress}
       style={[
         style,
-        disabled && styles.disabledTouchable // ✅ CAMBIO: Aplicar opacidad al TouchableOpacity
+        disabled && styles.disabledTouchable 
       ]}
       disabled={disabled || loading}
       pointerEvents={disabled || loading ? "none" : "auto"}
     >
       <LinearGradient
-        colors={buttonColors} // ✅ CAMBIO: Usar colores originales
+        colors={buttonColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[
           styles.buttonContainer,
-          // ✅ CAMBIO: Remover disabledContainer del LinearGradient
         ]}
       >
         <View style={styles.buttonContent}>
@@ -67,14 +65,13 @@ const ActionButton = ({
               <IconComponent 
                 name={iconName} 
                 size={20} 
-                color="#fff" // ✅ CAMBIO: Mantener color blanco del icono
+                color="#fff"
               />
             )
           )}
           <Text 
             style={[
               styles.buttonText, 
-              // ✅ CAMBIO: Remover disabledText
               textStyle
             ]}
           >
@@ -97,7 +94,6 @@ const styles = StyleSheet.create({
     maxHeight: 30,
     marginHorizontal: 5,
   },
-  // ✅ CAMBIO: Nueva clase para aplicar opacidad solo al TouchableOpacity
   disabledTouchable: {
     opacity: 0.9,
   },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -27,9 +27,8 @@ import * as FileSystem from 'expo-file-system';
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 
-const { height, width } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
-// Enable LayoutAnimation for Android
 if (
   Platform.OS === "android" &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -67,7 +66,7 @@ const CheckList = ({
   const [selectedImages, setSelectedImages] = useState([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isSendingChecklist, setIsSendingChecklist] = useState(false);
-  const [imageError, setImageError] = useState(false); // ✅ AGREGAR: Estado para manejar errores de imagen
+  const [imageError, setImageError] = useState(false); 
 
   const { toast, showToast, hideToast } = useToast();
 
@@ -100,7 +99,7 @@ const CheckList = ({
     };
   }, []);
 
-  // Fetch checklist form structure
+  // Fetch checklist
   useEffect(() => {
     if (apiBase && apiKey && idChecklistForm) {
       const fetchForm = async () => {
@@ -147,9 +146,8 @@ const CheckList = ({
     }
   }, [apiBase, apiKey, idChecklistForm]);
 
-  // ✅ AGREGAR: Funciones para manejar la imagen del vehículo
+  // para manejar la imagen del vehículo
   const handleImageError = () => {
-    console.log("Error loading vehicle image:", vehicle.fileUrlVehicleImage);
     setImageError(true);
   };
 
@@ -343,7 +341,7 @@ const CheckList = ({
 
     const idAssignment = vehicle.id; 
     const idCostcenter = vehicle.idCostcenter; 
-    console.log("COST CENTER", idCostcenter);
+
     if (idAssignment == null || idCostcenter == null) {
       showToast("Falta ID de asignación o centro de costo.", "error");
       console.error("Missing Id_assignment or Id_costcenter:", {
@@ -385,33 +383,9 @@ const CheckList = ({
       Attachments: attachmentsArray,
     };
 
-    console.log("Validation check:", {
-      Id_assignment: typeof checklistPayload.Id_assignment,
-      Id_checklistform: typeof checklistPayload.Id_checklistform,
-      Id_vehicle: typeof checklistPayload.Id_vehicle,
-      Id_costcenter: typeof checklistPayload.Id_costcenter,
-      Date_checklist: typeof checklistPayload.Date_checklist,
-      Id_creator: typeof checklistPayload.Id_creator,
-      CheckListDetailLength: checklistPayload.CheckListDetail.length,
-      AttachmentsLength: checklistPayload.Attachments.length
-    });
-
     try {
-      console.log("Sending checklist payload:", checklistPayload.Comments); // ✅ CORREGIDO: era .Comment
-      console.log ("id ASSSIGNMENT " , checklistPayload.Id_assignment); 
-      console.log ("id CHECKLIST FORM " , checklistPayload.Id_checklistform);
-      console.log ("id VEHICLE " , checklistPayload.Id_vehicle);
-      console.log ("id COST CENTER " , checklistPayload.Id_costcenter);
-      console.log ("Date CHECKLIST " , checklistPayload.Date_checklist);
-      console.log ("Id CREATOR " , checklistPayload.Id_creator);
-      console.log("CheckListDetail:", checklistPayload.CheckListDetail);
-      console.log("Comment:", checklistPayload.Comments);
-      
       const result = await postChecklistVehiculo(checklistPayload, apiBase, apiKey);
-
-      console.log("response checklist :", result.Mensaje);
-      
-      // ✅ CORREGIDO: Verificar que result.Mensaje existe antes de acceder a .Tipo
+      // Verificar que result.Mensaje existe antes de acceder a .Tipo
       if (result.Mensaje && result.Mensaje.Tipo == "E") {
         console.error("Error sending checklist:", result.Mensaje);
         showToast(
@@ -423,15 +397,14 @@ const CheckList = ({
         return; 
       }
       
-      // ✅ ÉXITO: Mostrar toast y actualizar lista
+      // Mostrar toast y actualizar lista
       showToast("✅ Checklist enviado exitosamente", "success", 3000);
       
-      // ✅ AGREGAR: Llamar callback para refrescar vehículos
+      // Llamar callback para refrescar vehículos
       if (onChecklistComplete) {
         onChecklistComplete();
       }
       
-      // Reset state after successful submission
       setCheckItems({});
       setObservations("");
       setSelectedImages([]);
@@ -440,10 +413,10 @@ const CheckList = ({
         scrollViewRef.current.scrollTo({ y: 0, animated: true });
       }
       
-      // ✅ DELAY: Cerrar modal después de mostrar toast
+      // Cerrar modal después de mostrar toast
       setTimeout(() => {
         handleClose();
-      }, 2000); // 2 segundos para que vea el toast
+      }, 2000); 
       
     } catch (error) {
       console.error("Error sending checklist:", error);
@@ -522,7 +495,7 @@ const CheckList = ({
                 </Text>
               </View>
 
-              {/* ✅ CAMBIO: LinearGradient con imagen real del vehículo */}
+              {/* LinearGradient con imagen real del vehículo */}
               <LinearGradient
                 colors={["#293e5d", "#17335C"]}
                 start={{ x: 0, y: 0 }}
@@ -539,7 +512,6 @@ const CheckList = ({
                       resizeMode="cover"
                     />
                   ) : (
-                    // ✅ Fallback: Mostrar ícono si no hay imagen o hay error
                     <Ionicons name="car-sport" size={40} color="#fff" />
                   )}
                 </View>
@@ -790,7 +762,6 @@ const CheckList = ({
 };
 
 const styles = StyleSheet.create({
-  // ... (previous styles)
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15, 23, 42, 0.75)",
@@ -809,7 +780,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
-    backgroundColor: "#f8fafc", // Light gray background for the modal content
+    backgroundColor: "#f8fafc", 
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: "hidden",
@@ -826,15 +797,14 @@ const styles = StyleSheet.create({
     }),
   },
   modalHeader: {
-    paddingTop: 16, // Increased padding for better spacing
-    paddingBottom: 8, // Added padding bottom
+    paddingTop: 16, 
+    paddingBottom: 8, 
     alignItems: "center",
-    position: "relative", // For absolute positioning of close button
+    position: "relative",
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0", // Lighter border color
-    backgroundColor: "white", // Ensure header has a background
+    borderBottomColor: "#e2e8f0",
+    backgroundColor: "white", 
     ...Platform.select({
-      // Subtle shadow for depth
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 1 },
@@ -845,23 +815,23 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
     }),
-    zIndex: 10, // Keep header above content
+    zIndex: 10, 
   },
   modalHandle: {
     width: 40,
     height: 5,
-    backgroundColor: "#cbd5e1", // Slightly darker handle
+    backgroundColor: "#cbd5e1", 
     borderRadius: 3,
-    marginBottom: 8, // Space below handle
+    marginBottom: 8, 
   },
   closeButton: {
     position: "absolute",
-    top: 12, // Adjust for vertical centering
+    top: 12, 
     right: 16,
-    width: 36, // Standard touch target size
+    width: 36, 
     height: 36,
-    borderRadius: 18, // Circular button
-    backgroundColor: "#f1f5f9", // Light background for contrast
+    borderRadius: 18, 
+    backgroundColor: "#f1f5f9", 
     justifyContent: "center",
     alignItems: "center",
   },
@@ -870,19 +840,18 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 30, // Ensure space for last items
+    paddingBottom: 30, 
   },
   vehicleCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#6366f1", // Primary color for vehicle card
-    borderRadius: 8, // More rounded corners
-    padding: 16, // Consistent padding
-    marginBottom: 16, // Space below card
+    backgroundColor: "#6366f1", 
+    borderRadius: 8, 
+    padding: 16, 
+    marginBottom: 16,
     ...Platform.select({
-      // Enhanced shadow
       ios: {
-        shadowColor: "#4338ca", // Darker shadow color
+        shadowColor: "#4338ca", 
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.25,
         shadowRadius: 10,
@@ -900,9 +869,8 @@ const styles = StyleSheet.create({
     marginRight: 14,
     borderRadius: 8,
     overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.1)", // ✅ AGREGAR: Fondo semi-transparente
+    backgroundColor: "rgba(255, 255, 255, 0.1)", // Fondo semi-transparente
   },
-  // ✅ AGREGAR: Estilo para la imagen del vehículo
   vehicleImage: {
     width: "100%",
     height: "100%",
@@ -917,7 +885,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   vehicleInfo: {
-    color: "rgba(255,255,255,0.8)", // Slightly transparent white for sub-info
+    color: "rgba(255,255,255,0.8)", 
     fontSize: 14,
     marginTop: 2,
   },
@@ -945,40 +913,38 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardHeaderTitle: {
-    fontSize: 18, // Prominent title
+    fontSize: 18, 
     fontWeight: "700",
-    color: "#1e293b", // Dark text color
+    color: "#1e293b", 
   },
-  // Removed infoIcon as it wasn't used in the provided JSX for this card
   checkItemContainer: {
     marginBottom: 8,
-    borderRadius: 12, // Rounded corners for each item
-    overflow: "hidden", // Important for borderRadius on children
-    backgroundColor: "white", // Default background
+    borderRadius: 12, 
+    overflow: "hidden", 
+    backgroundColor: "white", 
     borderWidth: 1,
-    borderColor: "#e2e8f0", // Light border
+    borderColor: "#e2e8f0", 
   },
   checkItemContainerActive: {
-    borderColor: "#c7d2fe", // Highlight when active/expanded
-    // elevation: 1, // Subtle elevation if desired
+    borderColor: "#c7d2fe", 
   },
   checkItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 15, // Comfortable touch area
+    paddingVertical: 15, 
     paddingHorizontal: 16,
-    backgroundColor: "white", // Ensure background for touch feedback
+    backgroundColor: "white", 
   },
   checkItemActive: {
-    backgroundColor: "#f8fafc", // Slightly different background when active
+    backgroundColor: "#f8fafc", 
   },
   checkItemText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#334155", // Readable text color
-    flexShrink: 1, // Allow text to shrink if too long
-    marginRight: 8, // Space before status indicator
+    color: "#334155", 
+    flexShrink: 1, 
+    marginRight: 8, 
   },
   statusIndicator: {
     paddingHorizontal: 10,
@@ -987,64 +953,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 110, // Ensure enough width for text and icon
-    backgroundColor: "#f1f5f9", // Default light gray background
-    borderWidth: 1, // Border for definition
-    // borderColor will be set by getStatusColors
+    minWidth: 110, 
+    backgroundColor: "#f1f5f9", 
+    borderWidth: 1,
   },
   statusDefault: {
-    // Added default style for status indicator
-    borderColor: "#cbd5e1", // Neutral border
+    borderColor: "#cbd5e1", 
   },
   statusGood: {
-    borderColor: "#16a34a", // Green border for "Good"
+    borderColor: "#16a34a", 
   },
   statusRegular: {
-    borderColor: "#d97706", // Orange border for "Regular"
+    borderColor: "#d97706", 
   },
   statusBad: {
-    borderColor: "#dc2626", // Red border for "Bad"
+    borderColor: "#dc2626", 
   },
   statusText: {
     fontSize: 14,
     fontWeight: "500",
-    marginRight: 4, // Space before chevron
-    color: "#334155", // Consistent text color
+    marginRight: 4, 
+    color: "#334155", 
   },
   dropdownContainer: {
-    backgroundColor: "#f8fafc", // Light background for dropdown area
+    backgroundColor: "#f8fafc", 
     borderTopWidth: 1,
-    borderTopColor: "#e2e8f0", // Separator line
-    padding: 8, // Padding around options
+    borderTopColor: "#e2e8f0",
+    padding: 8, 
   },
   dropdownOption: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 16, // Consistent padding
-    borderRadius: 10, // Rounded options
-    marginBottom: 4, // Space between options
-    backgroundColor: "#ffffff", // White background for options
+    paddingHorizontal: 16, 
+    borderRadius: 10, 
+    marginBottom: 4, 
+    backgroundColor: "#ffffff", 
     borderWidth: 1,
-    borderColor: "#e2e8f0", // Light border for each option
+    borderColor: "#e2e8f0", 
   },
-  // dropdownIconContainer can be used if you add icons to each option
-  // dropdownIconContainer: {
-  //   width: 28,
-  //   height: 28,
-  //   borderRadius: 10,
-  //   backgroundColor: "#f8fafc",
-  //   alignItems: "center",
-  //   justifyContent: "center",
-  //   marginRight: 12,
-  // },
   dropdownTextNeutral: {
     color: "#334155",
     fontSize: 15,
     fontWeight: "500",
   },
   observations: {
-    marginTop: 10, // Space above observations section
+    marginTop: 10, 
   },
   observationsLabel: {
     fontSize: 16,
@@ -1054,14 +1008,14 @@ const styles = StyleSheet.create({
   },
   observationsInput: {
     borderWidth: 1,
-    borderColor: "#cbd5e1", // Standard border color
+    borderColor: "#cbd5e1", 
     borderRadius: 10,
     padding: 10,
-    height: 90, // Fixed height for multiline input
-    textAlignVertical: "top", // Start text from the top
+    height: 90, 
+    textAlignVertical: "top", 
     fontSize: 15,
-    backgroundColor: "#f8fafc", // Light background for input
-    color: "#334155", // Text color
+    backgroundColor: "#f8fafc", 
+    color: "#334155", 
   },
   uploadCard: {
     backgroundColor: "white",
@@ -1085,37 +1039,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 20,
-    backgroundColor: "#f1f5f9", // Light background for upload area
+    backgroundColor: "#f1f5f9", 
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#e2e8f0", // Light border
-    borderStyle: "dashed", // Dashed border for visual cue
+    borderColor: "#e2e8f0", 
+    borderStyle: "dashed", 
   },
   uploadText: {
     marginLeft: 10,
     fontSize: 16,
-    color: "#6366f1", // Primary color for text
+    color: "#6366f1", 
     fontWeight: "500",
   },
   buttonContainer: {
     flexDirection: "row",
-    justifyContent: "space-between", // Space buttons evenly
+    justifyContent: "space-between", 
     width: "100%",
-    marginTop: 10, // Add some margin above buttons
+    marginTop: 10, 
   },
   sendButton: {
-    // Style for ActionButton wrapper if needed, or apply directly
-    flex: 1, // Make buttons take equal width
-    marginRight: 8, // Space between buttons
+    flex: 1, 
+    marginRight: 8, 
   },
   cancelButton: {
-    // Style for ActionButton wrapper
-    flex: 1, // Make buttons take equal width
-    marginLeft: 8, // Space between buttons
+    flex: 1, 
+    marginLeft: 8, 
   },
-  // Removed sendButtonText and cancelButtonText as ActionButton handles its own text styling
   loadingContainer: {
-    // For centering loading indicator
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
@@ -1124,20 +1074,19 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#4b5563", // Gray text for loading
+    color: "#4b5563", 
   },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fee2e2", // Light red background for error
+    backgroundColor: "#fee2e2", 
     padding: 15,
     borderRadius: 8,
     marginVertical: 10,
   },
   errorTextMsg: {
-    // Renamed from errorText to avoid conflict
     marginLeft: 10,
-    color: "#b91c1c", // Darker red text for error
+    color: "#b91c1c", 
     fontSize: 15,
     flexShrink: 1,
   },
@@ -1148,7 +1097,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   uploadTitle: {
-    // Añadido para el título de la sección de carga
     fontSize: 18,
     fontWeight: "700",
     color: "#1e293b",
@@ -1187,7 +1135,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: "#fee2e2",
     borderRadius: 6,
-    marginTop: 10, // Espacio sobre el botón "Limpiar todo"
+    marginTop: 10, 
   },
   clearAllText: {
     color: "#dc2626",

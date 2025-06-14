@@ -35,10 +35,6 @@ const MainLayout = ({ children }) => {
       await AsyncStorage.removeItem("apiBase");
       await AsyncStorage.removeItem("apiKey");
 
-      // IMPORTANTE: NO limpiar las preferencias de login
-      // Las preferencias se mantienen para que el usuario las vea la próxima vez
-      // await clearLoginPreferences(); // ← Esta línea NO debe ejecutarse
-
       // Simular tiempo de logout
       setTimeout(() => {
         setIsLoggingOut(false);

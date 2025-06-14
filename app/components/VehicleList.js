@@ -9,23 +9,20 @@ import {
   Modal,
   Alert,
   Platform,
-  TextInput, // Added TextInput
-  KeyboardAvoidingView, // Added KeyboardAvoidingView
+  TextInput, 
+  KeyboardAvoidingView, 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import MasInformacion from "./MasInformacion";
 import CheckList from "../checklist/index";
 import VehicleCard from "./VehicleCard";
 import Toast from "./Toast";
-// Import ActionButton - Asegúrate que la ruta sea correcta si está en otra carpeta
 import ActionButton from "./ActionButton";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   getMisAsignaciones,
   postAprobacionAsignacion,
   postDevolucionAsignacion,
 } from "../api/urls";
-import Footer from "./Footer";
 
 const VehicleList = ({ userId, apiBase, apiKey }) => {
   const [vehicles, setVehicles] = useState([]);
@@ -37,7 +34,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
   const [modalVisibleCheckList, setModalVisibleCheckList] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "", type: "" });
 
-  // State for the rejection comment modal
+
   const [isRejectionCommentModalVisible, setIsRejectionCommentModalVisible] =
     useState(false);
   const [rejectionComment, setRejectionComment] = useState("");
@@ -47,18 +44,12 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
   });
 
   const mapApiDataToVehicle = (apiItem) => {
-    console.log(`--- VEHICLELIST: mapApiDataToVehicle INVOCADA con apiItem: ${JSON.stringify(apiItem)} ---`);
     // Asignar un estado por defecto
     let status = "available";
-    // let actions = ["viewMore"]; // Ignorando 'actions' según la instrucción
-
-    // Helper function to determine if checklist is required for the current day
     const isChecklistRequiredToday = (item) => {
-      // Regla 1: Si Requires_checklist_daily es "N", el botón nunca aparece.
       if (item.Requires_checklist_daily === "N") {
         return false;
       }
-
       // Si llegamos aquí, Requires_checklist_daily es "S".
       // Ahora verificamos el flag del día específico.
       const today = new Date();
@@ -108,24 +99,16 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       // }
     }
 
-    // Mantener el array 'actions' original si es necesario para otras funcionalidades
-    // o definirlo según la lógica que no se debe tocar.
-    // Por ahora, lo dejaré como estaba antes de tu instrucción de ignorarlo,
-    // pero la lógica de 'doChecklist' no se añadirá aquí.
     let originalActions = ["viewMore"];
      if (apiItem.Requires_approval === "S") {
       if (apiItem.Approval_status_assignment === "P") {
         originalActions.push("approve", "reject");
       } else if (apiItem.Approval_status_assignment === "A") {
         originalActions.push("return");
-        // No se añade 'doChecklist' aquí basado en la instrucción de ignorar 'actions'
-        // para esta lógica específica.
       }
     } else {
       originalActions.push("return");
-       // No se añade 'doChecklist' aquí.
     }
-
 
     return {
       id: apiItem.Id_assignment.toString(),
@@ -176,7 +159,6 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
   };
 
   const loadData = async () => {
-    // setLoading(true); // Esto es para la carga inicial, no para el refresh
     try {
       const apiResponse = await getMisAsignaciones({
         apiBase: apiBase,
@@ -193,7 +175,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       } else {
         console.error("La respuesta de la API no es un array:", dataToMap);
         setVehicles([]);
-        setDisplayVehicles([]); // Asegurarse que displayVehicles también esté vacío
+        setDisplayVehicles([]); 
         Alert.alert(
           "Error de Datos",
           "No se pudo procesar la información de vehículos."
@@ -206,22 +188,21 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
         "No se pudieron cargar los vehículos. Intenta de nuevo más tarde."
       );
       setVehicles([]);
-      setDisplayVehicles([]); // Asegurarse que displayVehicles también esté vacío
+      setDisplayVehicles([]); 
     } finally {
       
     }
   };
 
-  // Función para la carga inicial de datos
   const initialLoadData = async () => {
     setLoading(true);
-    await loadData(); // Llama a la función de carga común
+    await loadData(); 
     setLoading(false);
   };
 
   useEffect(() => {
     if (userId && apiBase && apiKey) {
-      initialLoadData(); // Llama a la función de carga inicial
+      initialLoadData(); 
     } else {
       Alert.alert(
         "Error",
@@ -234,9 +215,9 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
 
   // Función para manejar el "Pull to Refresh"
   const onRefresh = async () => {
-    setRefreshing(true); // Activa el indicador de carga del refresh
-    await loadData(); // Llama a la función que carga los datos
-    setRefreshing(false); // Desactiva el indicador una vez que los datos se han cargado
+    setRefreshing(true); 
+    await loadData();
+    setRefreshing(false); 
   };
 
   const openModal = (vehicle) => {
@@ -370,7 +351,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
             try {
               const now = new Date();
               const day = String(now.getDate()).padStart(2, "0");
-              const month = String(now.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
+              const month = String(now.getMonth() + 1).padStart(2, "0"); 
               const year = now.getFullYear();
               const hours = String(now.getHours()).padStart(2, "0");
               const minutes = String(now.getMinutes()).padStart(2, "0");
@@ -381,7 +362,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
               await postDevolucionAsignacion({
                 apiBase,
                 apiKey,
-                Id_assignment: parseInt(idAssignment, 10), // Asegurarse que sea número si la API lo espera así
+                Id_assignment: parseInt(idAssignment, 10),
                 Date_returning: dateReturning,
                 Time_returning: timeReturning,
               });
@@ -392,8 +373,8 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
                 type: "success",
               });
 
-              await loadData(); // Recargar la lista de vehículos
-              closeModal(); // Cerrar el modal de MasInformacion si estaba abierto
+              await loadData(); 
+              closeModal(); 
             } catch (error) {
               console.error("Error al devolver el vehículo:", error);
               setToast({
@@ -416,14 +397,6 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
     const licensePlateForAlert = vehicleToApproveDetails
       ? vehicleToApproveDetails.licensePlate
       : idAssignment;
-    console.log(
-      `--- VEHICLELIST: approveVehicle INVOCADA con vehicleToApproveDetails: ${JSON.stringify(
-        vehicleToApproveDetails
-      )} ---`
-    );
-    console.log(
-      `--- VEHICLELIST: approveVehicle INVOCADA con idAssignment: ${idAssignment} ---`
-    );
 
     if (typeof idAssignment === "undefined" || idAssignment === null) {
       Alert.alert("Error de Datos", "ID de asignación inválido para aprobar.");
@@ -442,11 +415,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
         {
           text: "Aprobar",
           onPress: async () => {
-            console.log(`Usuario confirmó aprobación para ID: ${idAssignment}`);
             try {
-              console.log(
-                `Intentando aprobar asignación con ID: ${idAssignment}`
-              );
               await postAprobacionAsignacion({
                 apiBase,
                 apiKey,
@@ -479,15 +448,11 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
     );
   };
 
-  // ✅ AGREGAR: Función para refrescar vehículos
   const refreshVehicles = async () => {
-    console.log("Refreshing vehicles after checklist...");
-    await onRefresh(); // Reutilizar tu función existente de refresh
+    await onRefresh(); 
   };
 
-  // ✅ AGREGAR: Callback para cuando se complete el checklist
   const handleChecklistComplete = () => {
-    console.log("Checklist completed, refreshing vehicles...");
     refreshVehicles();
   };
 
@@ -509,7 +474,6 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
     );
   }
 
-  // Filter vehicles to exclude those with approvalStatusAssignment === "R"
   const filteredVehicles = vehicles.filter(
     (vehicle) => vehicle.approvalStatusAssignment !== "R"
   );
@@ -555,7 +519,6 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
         )}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
-        // Props para Pull to Refresh
         onRefresh={onRefresh}
         refreshing={refreshing}
       />
@@ -605,12 +568,11 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
             vehicle={selectedVehicle}
             onClose={closeModalCheckList}
             idUser={userId}
-            onChecklistComplete={handleChecklistComplete} // ✅ AGREGAR: Callback
+            onChecklistComplete={handleChecklistComplete} // Callback
           />
         )}
       </Modal>
 
-      {/* Rejection Comment Modal */}
       <Modal
         visible={isRejectionCommentModalVisible}
         animationType="fade"
@@ -640,17 +602,17 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
             <View style={styles.commentModalButtons}>
               <ActionButton
                 title="Cancelar"
-                iconName="cancel" // MaterialIcons
-                colors={["#868e96", "#52585D"]} // Shades of grey
+                iconName="cancel" 
+                colors={["#868e96", "#52585D"]} 
                 onPress={closeRejectionCommentModal}
-                style={styles.commentModalActionButton} // Apply flex style
+                style={styles.commentModalActionButton} 
               />
               <ActionButton
                 title="Rechazar"
-                iconName="send" // MaterialIcons
-                colors={["#e03131", "#c92a2a"]} // Shades of red
+                iconName="send" 
+                colors={["#e03131", "#c92a2a"]}
                 onPress={handleRejectionCommentSubmit}
-                style={styles.commentModalActionButton} // Apply flex style
+                style={styles.commentModalActionButton} 
               />
             </View>
           </View>
@@ -694,14 +656,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   carIcon: {
-    // Style for the new empty state icon background
     width: 70,
     height: 70,
-    borderRadius: 35, // Makes it a circle
-    backgroundColor: "#673AB7", // App's purple color
+    borderRadius: 35, 
+    backgroundColor: "#673AB7",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16, // Space before the text
+    marginBottom: 16, 
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -709,13 +670,12 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
-    elevation: 3, // Elevation for Android shadow
+    elevation: 3, 
   },
   listContainer: {
     paddingBottom: 60,
 
   },
-  // Estilos para el Modal de Comentario de Rechazo
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -753,7 +713,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
-    textAlignVertical: "top", // Para Android
+    textAlignVertical: "top", 
     marginBottom: 20,
     fontSize: 16,
     color: "#333",
@@ -761,37 +721,13 @@ const styles = StyleSheet.create({
   },
   commentModalButtons: {
     flexDirection: "row",
-    justifyContent: "space-between", // This will space out the ActionButtons
+    justifyContent: "space-between", 
     width: "100%",
-    marginTop: 10, // Added some margin top for spacing
+    marginTop: 10, 
   },
   commentModalActionButton: {
-    // New style for ActionButton wrapper if needed, or apply directly
-    flex: 1, // This will make buttons take equal width
-    // ActionButton has internal marginHorizontal: 5, so they will have space between them
-    // Adjust if ActionButton's internal styles conflict or don't provide enough spacing
+    flex: 1, 
   },
-  // Remove or comment out old button styles if no longer used elsewhere
-  // commentModalButton: {
-  //   flex: 1,
-  //   paddingVertical: 12,
-  //   borderRadius: 8,
-  //   alignItems: 'center',
-  //   justifyContent: 'center',
-  //   marginHorizontal: 5,
-  // },
-  // cancelButton: {
-  //   backgroundColor: '#6c757d',
-  // },
-  // submitButton: {
-  //   backgroundColor: '#dc3545',
-  // },
-  // commentModalButtonText: {
-  //   color: 'white',
-  //   fontWeight: 'bold',
-  //   fontSize: 16,
-  // },
-  // ... (resto de tus estilos)
 });
 
 export default VehicleList;

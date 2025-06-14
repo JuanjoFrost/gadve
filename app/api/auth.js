@@ -11,15 +11,12 @@ export async function postLogin({ apiBase, apiKey, usuario, clave }) {
     Email: usuario,
     Password: clave,
   });
-  console.log("URL:", url);
 
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,
   });
-
-  console.log("Response:", response);
 
   if (!response.ok) throw new Error("Error en el login");
 

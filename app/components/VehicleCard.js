@@ -15,8 +15,6 @@ const VehicleCard = ({
   const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
-    console.log("VehicleCard mounted for vehicle:", vehicle.licensePlate);
-    console.log("Vehicle image URL:", vehicle.fileUrlVehicleImage); // ✅ Debug log
     return () => {
       console.log("VehicleCard unmounted for vehicle:", vehicle.licensePlate);
     };
@@ -30,10 +28,6 @@ const VehicleCard = ({
     onApproveVehicle(vehicle.id);
   };
 
-  const handleReturnVehicle = () => {
-    onReturnVehicle(vehicle.id);
-  };
-
   const handleRejectVehicle = () => {
     onRejectVehicle(vehicle.id);
   };
@@ -42,13 +36,12 @@ const VehicleCard = ({
     onOpenModalCheckList(vehicle);
   };
 
-  // ✅ AGREGAR: Función para manejar errores de imagen
+  // Función para manejar errores de imagen
   const handleImageError = () => {
-    console.log("Error loading vehicle image:", vehicle.fileUrlVehicleImage);
     setImageError(true);
   };
 
-  // ✅ AGREGAR: Función para cuando la imagen se carga exitosamente
+  // Función para cuando la imagen se carga exitosamente
   const handleImageLoad = () => {
     setImageError(false);
   };
@@ -57,7 +50,6 @@ const VehicleCard = ({
     <View style={styles.cardContainer}>
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          {/* ✅ CAMBIO: Reemplazar ícono con imagen real del vehículo */}
           <View style={styles.carInfoContainer}>
             <View style={styles.vehicleImageWrapper}>
               {vehicle.fileUrlVehicleImage && !imageError ? (
@@ -69,7 +61,7 @@ const VehicleCard = ({
                   resizeMode="cover"
                 />
               ) : (
-                // ✅ Fallback: Mostrar ícono si no hay imagen o hay error
+                // Mostrar ícono si no hay imagen o hay error
                 <View style={styles.carIconWrapper}>
                   <Ionicons name="car-sport" size={30} color="#4527A0" />
                 </View>
@@ -313,7 +305,7 @@ const styles = StyleSheet.create({
     color: "#757575",
     marginRight: 4,
   },
-  dateAssignment: { // ✅ CORREGIDO: Nombre del estilo
+  dateAssignment: { 
     fontSize: 12,
     color: "#424242",
     fontWeight: "600",
@@ -414,8 +406,6 @@ const styles = StyleSheet.create({
     color: "#326fff",
     fontWeight: "500",
   },
-
-  // ✅ AGREGAR: Estilos para la imagen del vehículo
   vehicleImageWrapper: {
     width: 60,
     height: 40,
@@ -431,7 +421,7 @@ const styles = StyleSheet.create({
   vehicleImage: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#F5F5F5", // Color de fondo mientras carga
+    backgroundColor: "#F5F5F5", 
   },
 });
 

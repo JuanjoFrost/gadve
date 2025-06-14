@@ -9,7 +9,6 @@ export default function HomeScreen() {
   const userDataObject = params.userData ? JSON.parse(params.userData) : null;
   
   // Obtener apiBase y apiKey de los parámetros
-  // Es crucial que estos parámetros se hayan pasado desde la pantalla de login
   const apiBase = params.apiBase;
   const apiKey = params.apiKey;
 
@@ -20,13 +19,11 @@ export default function HomeScreen() {
   return (
        <MainLayout>
         <WelcomeCard name={userName} jobTitle={userJobTitle} />
-        {/* Pasar userId, apiBase y apiKey a VehicleList */}
         {userId && apiBase && apiKey ? (
           <VehicleList userId={userId} apiBase={apiBase} apiKey={apiKey} />
         ) : (
           <View style={styles.centeredMessage}>
             <Text>Cargando información del usuario...</Text>
-            {/* Podrías mostrar un ActivityIndicator aquí también */}
           </View>
         )}
       </MainLayout>

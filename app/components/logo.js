@@ -1,11 +1,9 @@
-import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 
 export default function Logo() {
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
-        {/* ✅ CAMBIO: Usar tu imagen gadve-icon-2.png en lugar del gear */}
         <Image 
           source={require('../../assets/images/gadve-icon-2.png')}
           style={styles.logoImage} 
@@ -30,11 +28,10 @@ const styles = StyleSheet.create({
   logoContainer: {
     position: 'relative',
   },
-  // ✅ CAMBIO: Nuevo estilo para tu imagen, removido tintColor y colorSections
   logoImage: {
     width: 32,
     height: 32,
-    resizeMode: 'contain', // ✅ AGREGAR: Para mantener proporciones de tu imagen
+    resizeMode: 'contain', 
   },
   textContainer: {
     flexDirection: 'row',

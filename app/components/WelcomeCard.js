@@ -63,17 +63,17 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 20,
     fontWeight: "500",
-    color: "#7722FF",
+    color: "#17335C",
     marginBottom: 4,
   },
   jobTitleText: {
     fontSize: 14,
-    color: "#7722FF",
+    color: "#17335C",
     marginBottom: 8,
   },
   messageText: {
     fontSize: 16,
-    color: "#7722FF",
+    color: "#17335C",
   },
   closeButton: {
     paddingLeft: 10,
