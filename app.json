@@ -14,10 +14,12 @@
       "backgroundColor": "#17355F"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.juanjofrost.cadve21",
+      "icon": "./assets/gadve-icon-3.png",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "GADVE necesita acceso a tu biblioteca de fotos para permitirte adjuntar imágenes como evidencia en los checklists de vehículos y reportes de daños. Por ejemplo, podrás seleccionar fotos del estado del vehículo, daños existentes, las fotografías requeridas para completar los procesos de entrega, seguimiento y devolución de vehículos arrendados."
       }
     },
     "android": {

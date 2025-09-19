@@ -12,13 +12,28 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
       }
     },
     "production": {
+      "ios": {
+        "distribution": "store"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      },
       "autoIncrement": true
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "juanjognzl@gmail.com",
+        "appleTeamId": "S987NJW678",
+        "companyName": "Controla Gestion SPA"
+      }
+    }
   }
 }
