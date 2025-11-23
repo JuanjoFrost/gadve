@@ -3,7 +3,7 @@
     "name": "Gadve",
     "slug": "cadve2-1",
     "scheme": "cadve2.1",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/gadve-icon-3.png",
     "userInterfaceStyle": "automatic",
@@ -15,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
+      "buildNumber": "2",
       "bundleIdentifier": "com.juanjofrost.cadve21",
       "icon": "./assets/gadve-icon-3.png",
       "infoPlist": {
@@ -23,17 +24,20 @@
       }
     },
     "android": {
+      "versionCode": 2,
       "adaptiveIcon": {
-        "backgroundColor": "#17355F",
-        "icon": "./assets/gadve-icon-3.png"
-        
+        "backgroundColor": "#17355F"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.juanjofrost.cadve21",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_MEDIA_LOCATION"
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
       ]
     },
     "web": {
@@ -49,12 +53,13 @@
           "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos.",
           "isAccessMediaLocationEnabled": true
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ae0260b5-23ee-4587-8989-39d9ccc6be2b"
+        "projectId": "55b140b4-a2f2-403d-a8cf-bb343c042ac3"
       }
     }
   }

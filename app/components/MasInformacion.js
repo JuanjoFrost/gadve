@@ -16,9 +16,13 @@ import * as WebBrowser from "expo-web-browser";
 import { LinearGradient } from "expo-linear-gradient";
 import Logo from "./logo";
 import { getDetalleAsignacion, getVehiculo } from "../api/urls";
-import * as FileSystem from "expo-file-system";
-import * as MediaLibrary from "expo-media-library";
+//import * as FileSystem from "expo-file-system";
+//import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system/legacy";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Sharing from "expo-sharing";
+
+const DOWNLOADS_URI_KEY = "DOWNLOADS_URI_SAF";
 
 const materialColors = {
   primary: "#4A6FE3",
@@ -188,6 +192,91 @@ const MasInformacion = ({
     onApprove(displayVehicle.id);
   };
 
+  //**********nuevo codigo
+  const requestAndroidDownloadsAccess = async () => {
+    try {
+      const permissions = await FileSystem.StorageAccessFramework
+        .requestDirectoryPermissionsAsync();
+
+      if (!permissions.granted) return null;
+
+      await AsyncStorage.setItem(DOWNLOADS_URI_KEY, permissions.directoryUri);
+      return permissions.directoryUri;
+
+    } catch (error) {
+      console.log("Error SAF:", error);
+      return null;
+    }
+  };
+
+  //**********nuevo codigo
+  const saveToAndroidDownloads = async (fileUrl, fileName) => {
+    try {
+      let directoryUri = await AsyncStorage.getItem(DOWNLOADS_URI_KEY);
+
+      if (!directoryUri) {
+        directoryUri = await requestAndroidDownloadsAccess();
+        if (!directoryUri) return null;
+      }
+
+      const tempUri = FileSystem.cacheDirectory + fileName;
+      const downloadRes = await FileSystem.downloadAsync(fileUrl, tempUri);
+
+      const base64 = await FileSystem.readAsStringAsync(downloadRes.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+        directoryUri,
+        fileName,
+        "application/octet-stream"
+      );
+
+      await FileSystem.writeAsStringAsync(newFileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      return newFileUri;
+
+    } catch (err) {
+      console.log("Error guardando:", err);
+      return null;
+    }
+  };
+
+    //**********nuevo codigo
+  const saveFileIOS = async (fileUrl, fileName) => {
+    try {
+      const tmp = FileSystem.cacheDirectory + fileName;
+      const downloadRes = await FileSystem.downloadAsync(fileUrl, tmp);
+
+      await Sharing.shareAsync(downloadRes.uri);
+      return true;
+
+    } catch (err) {
+      console.log("Error iOS sharing:", err);
+      return null;
+    }
+  };
+
+  //**********nuevo codigo
+  const downloadFileUniversal = async (fileUrl, fileName) => {
+    if (!fileUrl) {
+      alert("No se encontró archivo para descargar");
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      const uri = await saveToAndroidDownloads(fileUrl, fileName);
+      if (uri) alert("Archivo guardado exitosamente");
+      return;
+    }
+
+    if (Platform.OS === "ios") {
+      await saveFileIOS(fileUrl, fileName);
+    }
+  };
+
   return (
     <View style={styles.modalContainer}>
       <View style={styles.pageHeader}>
@@ -346,149 +435,13 @@ const MasInformacion = ({
                         `Adjunto_${Date.now()}_${index + 1}`;
                       const fileUrl = attachment.File_url;
 
-                      const handleDownload = async () => {
+                      const handleDownload = async (fileUrl, fileName) => {
                         try {
-                          const fileExtension = fileName.toLowerCase().split('.').pop();
-                          const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-                          const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', '3gp', 'webm'];
-                          const isImage = imageExtensions.includes(fileExtension);
-                          const isVideo = videoExtensions.includes(fileExtension);
-
-                          Alert.alert("Descargando...", `Descargando ${fileName}. Por favor espera.`);
-
-                          const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-                          const tempUri = FileSystem.documentDirectory + cleanFileName;
-                        
-                          const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri);
-
-                          if (downloadResult.status === 200) {
-                            const fileInfo = await FileSystem.getInfoAsync(downloadResult.uri);
-
-                            if (!fileInfo.exists || fileInfo.size === 0) {
-                                Alert.alert(
-                                  "Error de Descarga",
-                                  `El archivo "${fileName}" se descargó pero está vacío o no se pudo guardar correctamente. Por favor, verifica la URL o intenta más tarde.`
-                                );
-                                console.error(`File downloaded but is empty or does not exist. URI: ${downloadResult.uri}, Size: ${fileInfo.size}`);
-                                return;
-                            }
-
-                            if (isImage || isVideo) {
-                            try {
-                              const { status } = await MediaLibrary.requestPermissionsAsync();
-                              if (status !== 'granted') {
-                                Alert.alert(
-                                  'Permisos requeridos',
-                                  'Se necesitan permisos para guardar archivos multimedia en tu dispositivo.'
-                                );
-                                return;
-                              }
-
-                              const tempUri = FileSystem.documentDirectory + cleanFileName;
-                              const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri);
-
-                              if (downloadResult.status === 200) {
-                                const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
-                                
-                                let album = await MediaLibrary.getAlbumAsync('Gadve Downloads');
-                                if (album == null) {
-                                  album = await MediaLibrary.createAlbumAsync('Gadve Downloads', asset, false);
-                                } else {
-                                  await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-                                }
-                                
-                                Alert.alert(
-                                  'Descarga exitosa',
-                                  `${fileName} se ha guardado en tu galería en el álbum "Gadve Downloads"`
-                                );
-                              } else {
-                                throw new Error(`Error en la descarga. Status: ${downloadResult.status}`);
-                              }
-                            } catch (mediaError) {
-                              console.error('Error guardando archivo multimedia:', mediaError);
-                              Alert.alert(
-                                'Error al guardar',
-                                `No se pudo guardar ${fileName} en la galería.`
-                              );
-                            }
-                          } else {
-                            try {
-                              const tempUri = FileSystem.documentDirectory + cleanFileName;
-                              const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri);
-                              
-                              if (downloadResult.status === 200) {
-                                if (await Sharing.isAvailableAsync()) {
-                                  let mimeType = attachment.MimeType || "application/octet-stream";
-                                  
-                                  const mimeTypeMap = {
-                                    'pdf': 'application/pdf',
-                                    'doc': 'application/msword',
-                                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                                    'xls': 'application/vnd.ms-excel',
-                                    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                                    'ppt': 'application/vnd.ms-powerpoint',
-                                    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                                    'txt': 'text/plain',
-                                    'csv': 'text/csv',
-                                    'zip': 'application/zip',
-                                    'rar': 'application/x-rar-compressed',
-                                    '7z': 'application/x-7z-compressed'
-                                  };
-
-                                  if (!attachment.MimeType && mimeTypeMap[fileExtension]) {
-                                    mimeType = mimeTypeMap[fileExtension];
-                                  }
-
-                                  Alert.alert(
-                                    'Archivo descargado',
-                                    `${fileName} se ha descargado correctamente. En el siguiente panel puedes guardarlo en tu dispositivo seleccionando "Mis archivos" o "Guardar en dispositivo".`,
-                                    [
-                                      {
-                                        text: "Guardar en dispositivo",
-                                        onPress: async () => {
-                                          await Sharing.shareAsync(downloadResult.uri, {
-                                            mimeType: mimeType,
-                                            dialogTitle: `Guardar ${fileName}`,
-                                          });
-                                        }
-                                      },
-                                      {
-                                        text: "Cancelar",
-                                        style: "cancel"
-                                      }
-                                    ]
-                                  );
-                                } else {
-                                  Alert.alert(
-                                    'Descarga completa',
-                                    `${fileName} se ha descargado en el directorio temporal de la aplicación.`
-                                  );
-                                }
-                              } else {
-                                throw new Error(`Error en la descarga. Status: ${downloadResult.status}. Headers: ${JSON.stringify(downloadResult.headers)}`);
-                              }
-                            } catch (documentError) {
-                              console.error('Error descargando documento:', documentError);
-                              Alert.alert(
-                                'Error al descargar',
-                                `No se pudo descargar ${fileName}. Motivo: ${documentError.message}`
-                              );
-                            }
-                          }
-                          
-                          } else {
-                            Alert.alert(
-                              "Error de Descarga",
-                              `No se pudo descargar el archivo "${fileName}". Verifica tu conexión a internet e inténtalo nuevamente.`
-                            );
-                          }
-                        } catch (error) {
-                          console.error("Error al descargar:", error);
-                          Alert.alert(
-                            "Error de Descarga",
-                            `No se pudo descargar el archivo "${fileName}". Verifica tu conexión a internet e inténtalo nuevamente.\n\nDetalle: ${error.message || "Error desconocido"}`
-                          );
+                          await downloadFileUniversal(fileUrl, fileName);
+                        } catch (e) {
+                          console.log("Error al descargar archivo:", e);
                         }
+
                       };
 
                       return (
@@ -498,24 +451,11 @@ const MasInformacion = ({
                             if (fileUrl) {
                               Alert.alert(
                                 "Opciones del Adjunto",
-                                `¿Qué deseas hacer con ${fileName}?`,
+                                `¿Deseas descargar ${fileName}?`,
                                 [
                                   {
-                                    text: "Ver",
-                                    onPress: () => {
-                                      WebBrowser.openBrowserAsync(
-                                        fileUrl
-                                      ).catch(() =>
-                                        Alert.alert(
-                                          "Error",
-                                          "No se pudo abrir el adjunto."
-                                        )
-                                      );
-                                    },
-                                  },
-                                  {
-                                    text: "Descargar",
-                                    onPress: handleDownload,
+                                    text: "Si, confirmo",
+                                    onPress: () => handleDownload(fileUrl, fileName),
                                   },
                                   {
                                     text: "Cancelar",
@@ -572,153 +512,11 @@ const MasInformacion = ({
                         `Adjunto_Vehiculo_${Date.now()}_${index + 1}`;
                       const fileUrl = attachment.File_url || attachment.FileUrl;
 
-                      const handleVehicleDownload = async () => {
+                      const handleVehicleDownload = async (fileUrl, fileName) => {
                         try {
-                          const fileExtension = fileName.toLowerCase().split('.').pop();
-                          const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-                          const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', '3gp', 'webm'];
-                          const isImage = imageExtensions.includes(fileExtension);
-                          const isVideo = videoExtensions.includes(fileExtension);
-
-                          Alert.alert("Descargando...", `Descargando ${fileName}. Por favor espera.`);
-                          
-                          const cleanFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-                          const tempUri = FileSystem.documentDirectory + cleanFileName;
-                          
-                          const requestOptions = {
-                            headers: {
-                              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                              'Accept': '*/*', 
-                            }
-                          };
-
-                          const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri, requestOptions);
-
-                          if (downloadResult.status === 200) {
-                            const fileInfo = await FileSystem.getInfoAsync(downloadResult.uri);
-
-                            if (!fileInfo.exists || fileInfo.size === 0) {
-                                Alert.alert(
-                                  "Error de Descarga",
-                                  `El archivo "${fileName}" (vehículo) se descargó pero está vacío o no se pudo guardar correctamente. Por favor, verifica la URL, los encabezados de la solicitud o intenta más tarde.`
-                                );
-                                console.error(`File downloaded (vehicle) but is empty or does not exist. URI: ${downloadResult.uri}, Size: ${fileInfo.size}. Headers sent: ${JSON.stringify(requestOptions.headers)}`);
-                                return; 
-                            }
-
-                            if (isImage || isVideo) {
-                            try {
-                              const { status } = await MediaLibrary.requestPermissionsAsync();
-                              if (status !== 'granted') {
-                                Alert.alert(
-                                  'Permisos requeridos',
-                                  'Se necesitan permisos para guardar archivos multimedia en tu dispositivo.'
-                                );
-                                return;
-                              }
-
-                              const tempUri = FileSystem.documentDirectory + cleanFileName;
-                              const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri);
-
-                             
-                                 const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
-                              
-                              let album = await MediaLibrary.getAlbumAsync('Gadve Downloads');
-                              if (album == null) {
-                                album = await MediaLibrary.createAlbumAsync('Gadve Downloads', asset, false);
-                              } else {
-                                await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-                              }
-                              
-                                
-                                Alert.alert(
-                                  'Descarga exitosa',
-                                  `${fileName} se ha guardado en tu galería en el álbum "Gadve Downloads"`
-                                );
-                             
-                            } catch (mediaError) {
-                              console.error('Error guardando archivo multimedia:', mediaError);
-                              Alert.alert(
-                                'Error al guardar',
-                                `No se pudo guardar ${fileName} en la galería.`
-                              );
-                            }
-                          } else {
-                            try {
-                              const tempUri = FileSystem.documentDirectory + cleanFileName;
-                              const downloadResult = await FileSystem.downloadAsync(fileUrl, tempUri);
-                              
-                              if (downloadResult.status === 200) {
-                                if (await Sharing.isAvailableAsync()) {
-                                  let mimeType = attachment.MimeType || attachment.mimeType || "application/octet-stream";
-                                  
-                                  const mimeTypeMap = {
-                                    'pdf': 'application/pdf',
-                                    'doc': 'application/msword',
-                                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                                    'xls': 'application/vnd.ms-excel',
-                                    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                                    'ppt': 'application/vnd.ms-powerpoint',
-                                    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                                    'txt': 'text/plain',
-                                    'csv': 'text/csv',
-                                    'zip': 'application/zip',
-                                    'rar': 'application/x-rar-compressed',
-                                    '7z': 'application/x-7z-compressed'
-                                  };
-
-                                  if ((!attachment.MimeType && !attachment.mimeType) && mimeTypeMap[fileExtension]) {
-                                    mimeType = mimeTypeMap[fileExtension];
-                                  }
-
-                                  Alert.alert(
-                                    'Archivo descargado',
-                                    `${fileName} se ha descargado correctamente. En el siguiente panel puedes guardarlo en tu dispositivo seleccionando "Mis archivos" o "Guardar en dispositivo".`,
-                                    [
-                                      {
-                                        text: "Guardar en dispositivo",
-                                        onPress: async () => {
-                                          await Sharing.shareAsync(downloadResult.uri, {
-                                            mimeType: mimeType,
-                                            dialogTitle: `Guardar ${fileName}`,
-                                          });
-                                        }
-                                      },
-                                      {
-                                        text: "Cancelar",
-                                        style: "cancel"
-                                      }
-                                    ]
-                                  );
-                                } else {
-                                  Alert.alert(
-                                    'Descarga completa',
-                                    `${fileName} se ha descargado en el directorio temporal de la aplicación.`
-                                  );
-                                }
-                              } else {
-                                throw new Error(`Error en la descarga (vehículo). Status: ${downloadResult.status}. Headers: ${JSON.stringify(downloadResult.headers)}`);
-                              }
-                            } catch (documentError) {
-                              console.error('Error descargando documento:', documentError);
-                              Alert.alert(
-                                'Error al descargar',
-                                `No se pudo descargar ${fileName}. Motivo: ${documentError.message}`
-                              );
-                            }
-                          }
-                          } else {
-                            Alert.alert(
-                              "Error de Descarga",
-                              `No se pudo descargar el archivo "${fileName}" (vehículo). Verifica tu conexión a internet e inténtalo nuevamente.`
-                            );
-                          }
-                        } catch (error) {
-                          console.error("Error al descargar (vehículo):", error);
-                          Alert.alert(
-                            "Error de Descarga",
-                            `No se pudo descargar el archivo "${fileName}" (vehículo). Verifica tu conexión a internet e inténtalo nuevamente.\n\nDetalle: ${error.message || "Error desconocido"}`
-                          );
+                          await downloadFileUniversal(fileUrl, fileName);
+                        } catch (e) {
+                          console.log("Error al descargar archivo (vehículo):", e);
                         }
                       };
 
@@ -729,24 +527,11 @@ const MasInformacion = ({
                             if (fileUrl) {
                               Alert.alert(
                                 "Opciones del Adjunto del Vehículo",
-                                `¿Qué deseas hacer con ${fileName}?`,
+                                `¿Deseas descargar ${fileName}?`,
                                 [
                                   {
-                                    text: "Ver",
-                                    onPress: () => {
-                                      WebBrowser.openBrowserAsync(
-                                        fileUrl
-                                      ).catch(() =>
-                                        Alert.alert(
-                                          "Error",
-                                          "No se pudo abrir el adjunto del vehículo."
-                                        )
-                                      );
-                                    },
-                                  },
-                                  {
-                                    text: "Descargar",
-                                    onPress: handleVehicleDownload,
+                                    text: "Si, confirmo",
+                                    onPress: () => handleVehicleDownload(fileUrl, fileName),
                                   },
                                   {
                                     text: "Cancelar",
@@ -810,85 +595,6 @@ const MasInformacion = ({
             </View>
           </View>
 
-          {/* Action Buttons Section */}
-          {!isReturn && (
-            <View style={styles.actionButtonsSection}>
-              {isApproval && (
-                <>
-                  <View style={styles.actionButtonContainer}>
-                    <ActionButton
-                      title={"Aprobar"}
-                      iconName="check-circle"
-                      colors={[materialColors.success, materialColors.success]}
-                      onPress={handleApprove}
-                    />
-                  </View>
-                  <View style={styles.actionButtonContainer}>
-                    <ActionButton
-                      title={"Rechazar"}
-                      iconName="cancel"
-                      colors={[materialColors.error, materialColors.error]}
-                      onPress={() => onReject(displayVehicle.id)}
-                    />
-                  </View>
-                </>
-              )}
-              {isChecklist && (
-                <>
-                  {displayVehicle.requiresChecklistDaily === "S" &&
-                    displayVehicle.approvalStatusAssignment == "A" &&
-                    displayVehicle.dateReturning == null &&
-                    displayVehicle.displayChecklistButton && (
-                      <View style={styles.actionButtonContainer}>
-                        <ActionButton
-                          title={displayVehicle.IdChecklistToday ? "Check listo" : "Hacer Check"}
-                          iconName={
-                            displayVehicle.IdChecklistToday ? "" : "checklist-rtl"
-                          }
-
-                          colors={
-                            displayVehicle.IdChecklistToday
-                              ? ["#10b981", "#059669"] // Verde para completado
-                              : ["#FF8800", "#FF6600"] // Naranja para pendiente
-                          }
-                          onPress={onOpenModalCheckList}
-                          disabled={displayVehicle.IdChecklistToday ? true : false}
-                        />
-                      </View>
-                    )}
-                  {displayVehicle.dateReturning == null && (
-                    <View style={styles.actionButtonContainer}>
-                      <ActionButton
-                        title={"Devolver"}
-                        iconName="keyboard-return"
-                        colors={[
-                          materialColors.infoBlue,
-                          materialColors.infoBlue,
-                        ]}
-                        onPress={() => onReturn(displayVehicle.id)}
-                      />
-                    </View>
-                  )}
-                </>
-              )}
-              {!isApproval && !isChecklist && !isAssigned && (
-                <>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.approveButton]}
-                  >
-                    <MaterialIcons name="check-circle" size={18} color="#FFF" />
-                    <Text style={styles.actionButtonText}>Aprobar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.rejectButton]}
-                  >
-                    <MaterialIcons name="cancel" size={18} color="#FFF" />
-                    <Text style={styles.actionButtonText}>Rechazar</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          )}
         </View>
       </ScrollView>
     </View>

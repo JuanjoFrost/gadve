@@ -344,6 +344,9 @@ const LoginScreen = () => {
               <Text style={styles.footerText}>
                 Todos los derechos reservados
               </Text>
+              <Text style={styles.footerText}>
+                App versión 1.0.1
+              </Text>
             </View>
           </View>
         </ScrollView>

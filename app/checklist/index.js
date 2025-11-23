@@ -21,9 +21,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import ActionButton from "../components/ActionButton";
 import { getFormularioChecklist, postChecklistVehiculo } from "../api/urls";
-import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { useToast } from "../hooks/useToast";
 import Toast from "../components/Toast";
 
@@ -69,6 +69,12 @@ const CheckList = ({
   const [imageError, setImageError] = useState(false); 
 
   const { toast, showToast, hideToast } = useToast();
+
+  //nuevo
+  const [inputValue1, setInputValue1] = useState("");
+  const [inputValue2, setInputValue2] = useState("");
+  const [isChecklistExpanded, setIsChecklistExpanded] = useState(true);
+  const [isUploadExpanded, setIsUploadExpanded] = useState(true);
 
   const scrollViewRef = useRef(null);
   const animations = useMemo(
@@ -172,12 +178,12 @@ const CheckList = ({
         return;
       }
 
+      //Actualizacion
       setIsUploadingImages(true);
-
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         allowsMultipleSelection: true,
-        quality: 1.0,
+        quality: 1,
         selectionLimit: remainingSlots,
       });
 
@@ -230,13 +236,18 @@ const CheckList = ({
               }
             }
 
+            //Actualizacion
             let base64Data = null;
             try {
               base64Data = await FileSystem.readAsStringAsync(currentUri, {
                 encoding: FileSystem.EncodingType.Base64,
               });
             } catch (e) {
-              showToast(`Error al procesar la imagen ${asset.fileName || `seleccionada ${index + 1}`}.`, "error");
+              console.log("ERROR BASE64:", e);
+              showToast(
+                `Error al procesar la imagen ${asset.fileName || `seleccionada ${index + 1}`}.`,
+                "error"
+              );
               return null;
             }
 
@@ -351,8 +362,36 @@ const CheckList = ({
       return;
     }
 
-    setIsSendingChecklist(true);
+    // -------- VALIDACIÓN SEGÚN Inputs_requires --------
+    if (checklistForm.Inputs_requires === 1) {
+      if (!inputValue1 || isNaN(inputValue1)) {
+        showToast("Debe ingresar un valor numérico.", "error");
+        return;
+      }
+    }
 
+    if (checklistForm.Inputs_requires === 2) {
+      if (!inputValue1 || !inputValue2) {
+        showToast("Debe ingresar el valor inicial y el valor final.", "error");
+        return;
+      }
+
+      const v1 = Number(inputValue1);
+      const v2 = Number(inputValue2);
+
+      if (isNaN(v1) || isNaN(v2)) {
+        showToast("Ambos valores deben ser numéricos.", "error");
+        return;
+      }
+
+      if (v2 < v1) {
+        showToast("El valor final debe ser mayor o igual al inicial.", "error");
+        return;
+      }
+    }
+
+    setIsSendingChecklist(true);
+    
     const checkListDetailArray = Object.keys(checkItems).map((conceptId) => ({
       Id_checklistconcept: parseInt(conceptId, 10),
       Id_valuechecklistconcept: checkItems[conceptId],
@@ -381,6 +420,9 @@ const CheckList = ({
       Comments: observations || "NA",
       CheckListDetail: checkListDetailArray,
       Attachments: attachmentsArray,
+      Kilometer: inputValue1 ? Number(inputValue1) : null,
+      Kilometer_end: inputValue2 ? Number(inputValue2) : null,
+      Inputs_requires: checklistForm.Inputs_requires,
     };
 
     try {
@@ -489,12 +531,13 @@ const CheckList = ({
               removeClippedSubviews={Platform.OS === "android"}
               keyboardShouldPersistTaps="handled"
             >
+              {/*
               <View style={styles.cardHeader}>
                 <Text style={styles.cardHeaderTitle}>
                   {checklistForm?.Description || "Estado del Vehículo"}
                 </Text>
               </View>
-
+              */}
               {/* LinearGradient con imagen real del vehículo */}
               <LinearGradient
                 colors={["#293e5d", "#17335C"]}
@@ -549,40 +592,53 @@ const CheckList = ({
               )}
 
               {!isLoadingForm && !fetchFormError && checklistForm && (
-                <View style={styles.checklistCard}>
-                  {checklistForm.ChecklistFormConcepts.map((concept) => (
-                    <View
-                      key={concept.Id_checklistconcept}
-                      style={[
-                        styles.checkItemContainer,
-                        expandedItem === concept.Id_checklistconcept &&
-                          styles.checkItemContainerActive,
-                      ]}
-                    >
-                      <TouchableOpacity
+              <View style={styles.checklistCard}>
+                {/* Header con botón */}
+                <View style={styles.cardCollapseHeader}>
+                  <Text style={styles.uploadSubtitle}>
+                    {(checklistForm?.Description?.length > 40
+                    ? checklistForm.Description.substring(0, 40) + "..."
+                    : checklistForm?.Description) || "Detalle formulario"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setIsChecklistExpanded(prev => !prev)}
+                    style={styles.collapseButton}
+                  >
+                    <Ionicons
+                      name={isChecklistExpanded ? "chevron-up" : "chevron-down"}
+                      size={22}
+                      color="#334155"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Contenido colapsable */}
+                {isChecklistExpanded && (
+                  <>
+                    {checklistForm.ChecklistFormConcepts.map((concept) => (
+                      <View
+                        key={concept.Id_checklistconcept}
                         style={[
-                          styles.checkItem,
+                          styles.checkItemContainer,
                           expandedItem === concept.Id_checklistconcept &&
-                            styles.checkItemActive,
+                            styles.checkItemContainerActive
                         ]}
-                        onPress={() =>
-                          toggleDropdown(concept.Id_checklistconcept)
-                        }
-                        activeOpacity={0.7}
                       >
-                        <Text style={styles.checkItemText}>
-                          {concept.Description}
-                        </Text>
-                        <View
+                        <Text style={styles.checkItemLabel}>{concept.Description}</Text>
+
+                        <TouchableOpacity
                           style={[
-                            styles.statusIndicator
+                            styles.selectButton,
+                            expandedItem === concept.Id_checklistconcept &&
+                              styles.selectButtonActive
                           ]}
+                          onPress={() => toggleDropdown(concept.Id_checklistconcept)}
+                          activeOpacity={0.7}
                         >
                           <Text style={styles.statusText}>
-                            {getSelectedValueDescription(
-                              concept.Id_checklistconcept
-                            )}
+                            {getSelectedValueDescription(concept.Id_checklistconcept)}
                           </Text>
+
                           <Ionicons
                             name={
                               expandedItem === concept.Id_checklistconcept
@@ -591,14 +647,12 @@ const CheckList = ({
                             }
                             size={16}
                           />
-                        </View>
-                      </TouchableOpacity>
+                        </TouchableOpacity>
 
-                      {expandedItem === concept.Id_checklistconcept && (
-                        <View style={styles.dropdownContainer}>
-                          {concept.Validvalues.map((value) => {
-                            if (value.Description != null) {
-                              return (
+                        {expandedItem === concept.Id_checklistconcept && (
+                          <View style={styles.dropdownContainer}>
+                            {concept.Validvalues.map((value) =>
+                              value.Description ? (
                                 <TouchableOpacity
                                   key={value.Id_valuechecklistconcept}
                                   style={styles.dropdownOption}
@@ -614,36 +668,115 @@ const CheckList = ({
                                     {value.Description}
                                   </Text>
                                 </TouchableOpacity>
-                              );
-                            }
-                            return null;
-                          })}
-                        </View>
-                      )}
-                    </View>
-                  ))}
+                              ) : null
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    ))}
 
-                  <View style={styles.observations}>
-                    <Text style={styles.observationsLabel}>Observaciones:</Text>
-                    <TextInput
-                      style={styles.observationsInput}
-                      multiline
-                      maxLength={500}
-                      value={observations}
-                      onChangeText={setObservations}
-                      placeholder="Añadir observaciones adicionales aquí..."
-                      placeholderTextColor="#94a3b8"
-                    />
-                  </View>
-                </View>
+                    {/* Inputs_requires */}
+                    {checklistForm.Inputs_requires === 1 && (
+                      <View style={styles.inputSection}>
+                        <Text style={styles.inputLabel}>
+                          {checklistForm.Control_method === "H"
+                            ? "Horómetro"
+                            : "Kilómetros"}
+                        </Text>
+                        <TextInput
+                          style={styles.numericInput}
+                          keyboardType="numeric"
+                          placeholder="Ingrese valor"
+                          placeholderTextColor="#94a3b8"
+                          value={inputValue1}
+                          onChangeText={(text) =>
+                            setInputValue1(text.replace(/[^0-9]/g, ""))
+                          }
+                        />
+                      </View>
+                    )}
+
+                    {checklistForm.Inputs_requires === 2 && (
+                      <View style={styles.doubleInputSection}>
+                        <View style={styles.inputColumn}>
+                          <Text style={styles.inputLabel}>
+                            {checklistForm.Control_method === "H"
+                              ? "Horómetro inicial"
+                              : "Kilómetro inicial"}
+                          </Text>
+                          <TextInput
+                            style={styles.numericInput}
+                            keyboardType="numeric"
+                            placeholder="Valor inicial"
+                            placeholderTextColor="#94a3b8"
+                            value={inputValue1}
+                            onChangeText={(text) =>
+                              setInputValue1(text.replace(/[^0-9]/g, ""))
+                            }
+                          />
+                        </View>
+
+                        <View style={styles.inputColumn}>
+                          <Text style={styles.inputLabel}>
+                            {checklistForm.Control_method === "H"
+                              ? "Horómetro final"
+                              : "Kilómetro final"}
+                          </Text>
+                          <TextInput
+                            style={styles.numericInput}
+                            keyboardType="numeric"
+                            placeholder="Valor final"
+                            placeholderTextColor="#94a3b8"
+                            value={inputValue2}
+                            onChangeText={(text) =>
+                              setInputValue2(text.replace(/[^0-9]/g, ""))
+                            }
+                          />
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Observaciones */}
+                    <View style={styles.observations}>
+                      <Text style={styles.observationsLabel}>Observaciones:</Text>
+                      <TextInput
+                        style={styles.observationsInput}
+                        multiline
+                        maxLength={500}
+                        value={observations}
+                        onChangeText={setObservations}
+                        placeholder="Añadir observaciones..."
+                        placeholderTextColor="#94a3b8"
+                      />
+                    </View>
+                  </>
+                )}
+              </View>
+
               )}
 
               <View style={styles.uploadCard}>
-                <View style={styles.uploadHeader}>
+                {/*<View style={styles.uploadHeader}>*/}
+                <View style={styles.cardCollapseHeader}>
                   <Text style={styles.uploadSubtitle}>
                     {selectedImages.length}/3 fotos seleccionadas
                   </Text>
+
+                  <TouchableOpacity
+                    onPress={() => setIsUploadExpanded(prev => !prev)}
+                    style={styles.collapseButton}
+                  >
+                    <Ionicons
+                      name={isUploadExpanded ? "chevron-up" : "chevron-down"}
+                      size={22}
+                      color="#334155"
+                    />
+                  </TouchableOpacity>
+
                 </View>
+
+                {isUploadExpanded && (
+                  <>
 
                 {selectedImages.length > 0 && (
                   <View style={styles.selectedImagesContainer}>
@@ -731,6 +864,12 @@ const CheckList = ({
                     </>
                   )}
                 </TouchableOpacity>
+                    
+                  </>
+                )}
+
+
+
               </View>
 
               <View style={styles.buttonContainer}>
@@ -939,6 +1078,53 @@ const styles = StyleSheet.create({
   checkItemActive: {
     backgroundColor: "#f8fafc", 
   },
+  checkItemLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#334155",
+    marginBottom: 6,
+  },
+  selectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 8,
+  },
+  selectButtonActive: {
+    borderColor: "#6366f1",
+  },
+  inputSection: {
+    marginTop: 10,
+  },
+  doubleInputSection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  inputColumn: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#334155",
+    marginBottom: 6,
+  },
+  numericInput: {
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: "#f8fafc",
+    color: "#334155",
+    fontSize: 15,
+  },
   checkItemText: {
     fontSize: 16,
     fontWeight: "500",
@@ -1055,7 +1241,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between", 
     width: "100%",
-    marginTop: 10, 
+    marginTop: 5, 
   },
   sendButton: {
     flex: 1, 
@@ -1168,6 +1354,18 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  cardCollapseHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    marginBottom: 10,
+  },
+
+  collapseButton: {
+    padding: 6,
+    borderRadius: 6,
   },
 });
 

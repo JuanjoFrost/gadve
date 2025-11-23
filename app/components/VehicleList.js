@@ -125,7 +125,8 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       actions: originalActions, // Usando el array 'actions' original o modificado según otras reglas
       requiresApproval: apiItem.Requires_approval,
       approvalStatusAssignment: apiItem.Approval_status_assignment,
-      
+      //
+      userId:apiItem.Id_user,
       // Campos de la API para determinar la visibilidad del botón de checklist
       requiresChecklistDaily: apiItem.Requires_checklist_daily,
       requiresChecklistMonday: apiItem.Requires_checklist_monday,
@@ -153,7 +154,7 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       timeReturning: apiItem.Time_returning,
       possibleDateReturn: apiItem.Possible_date_return,
       possibleTimeReturn: apiItem.Possible_time_return,
-
+      lastDateChecklistOperator:apiItem.Last_date_checklist_operator,
       fileUrlVehicleImage: apiItem.File_url_img,
     };
   };
@@ -338,15 +339,15 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       : "este vehículo";
 
     Alert.alert(
-      "Confirmar Devolución",
-      `¿Estás seguro de que deseas devolver ${licensePlateForAlert}?`,
+      "Confirmar devolución",
+      `¿Estás seguro de que deseas devolver ${licensePlateForAlert}, esta acción es irreversible, devolverá el vehículo e impedirá generar checklist?`,
       [
         {
           text: "Cancelar",
           style: "cancel",
         },
         {
-          text: "Devolver",
+          text: "Confirmo",
           onPress: async () => {
             try {
               const now = new Date();
@@ -507,16 +508,20 @@ const VehicleList = ({ userId, apiBase, apiKey }) => {
       <FlatList
         data={filteredVehicles} 
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+           //alert("Id_user tipo:" + item.userId);
+          return (
           <VehicleCard
             vehicle={item}
+            btnDevolver={Number(item.userId) === Number(userId)}
             onOpenModal={openModal}
             onOpenModalCheckList={onOpenModalCheckList}
             onApproveVehicle={approveVehicle}
             onReturnVehicle={returnVehicle}
             onRejectVehicle={rejectVehicle}
           />
-        )}
+          );
+        }}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         onRefresh={onRefresh}

@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 const VehicleCard = ({
   vehicle,
+  btnDevolver,
   onOpenModal,
   onApproveVehicle,
   onReturnVehicle,
@@ -46,6 +47,17 @@ const VehicleCard = ({
     setImageError(false);
   };
 
+  const formatDateWithoutSeconds = (value) => {
+  if (!value) return "";
+
+  const [date, time] = value.split(" ");
+  if (!time) return date;
+
+  const [hh, mm] = time.split(":");
+
+  return `${date} ${hh}:${mm}`;
+};
+
   return (
     <View style={styles.cardContainer}>
       <View style={styles.card}>
@@ -85,27 +97,33 @@ const VehicleCard = ({
                   : "sin fecha de asignación"}
               </Text>
             </View>
+          </View>                            
+
+          <View style={styles.checkContainer}>
+            {vehicle.lastDateChecklistOperator && 
+              vehicle.requiresChecklistDaily == "S" &&
+              vehicle.approvalStatusAssignment == "A" &&
+              vehicle.dateReturning == null &&
+              vehicle.displayChecklistButton &&
+            (
+              <Text style={styles.lastChecklist}>
+                Último realizado: {formatDateWithoutSeconds(vehicle.lastDateChecklistOperator)}
+              </Text>
+            )}
+
+            {vehicle.requiresChecklistDaily == "S" &&
+              vehicle.approvalStatusAssignment == "A" &&
+              vehicle.dateReturning == null &&
+              vehicle.displayChecklistButton && (
+                <ActionButton
+                  title="Hacer Check"
+                  iconName="checklist-rtl"
+                  colors={["#FF8800", "#FF6600"]}
+                  onPress={handleCheckList}
+                />
+              )}
           </View>
 
-          {vehicle.requiresChecklistDaily == "S" &&
-            vehicle.approvalStatusAssignment == "A" &&
-            vehicle.dateReturning == null &&
-            vehicle.displayChecklistButton && (
-              <ActionButton
-                title={vehicle.IdChecklistToday ? "Check listo" : "Hacer Check"}
-                iconName={
-                  vehicle.IdChecklistToday ? "" : "checklist-rtl"
-                }
-                
-                colors={
-                  vehicle.IdChecklistToday
-                    ? ["#10b981", "#059669"] // Verde para completado
-                    : ["#FF8800", "#FF6600"] // Naranja para pendiente
-                }
-                onPress={handleCheckList}
-                disabled={vehicle.IdChecklistToday ? true : false}
-              />
-            )}
         </View>
 
         <View style={styles.divider} />
@@ -120,10 +138,10 @@ const VehicleCard = ({
           />
 
           <View style={styles.actionButtons}>
-            {vehicle.approvalStatusAssignment == "A" &&
+            {btnDevolver == true && vehicle.approvalStatusAssignment == "A" &&
               vehicle.dateReturning == null && (
                 <ActionButton
-                  title="Devolver"
+                  title="Devolver vehículo"
                   iconName="keyboard-return"
 
                   colors={["#293e5d", "#17335C"]}
@@ -423,6 +441,18 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#F5F5F5", 
   },
+checkContainer: {
+  alignItems: "flex-end",
+  marginBottom: 10,
+},
+
+lastChecklist: {
+  fontSize: 12,
+  color: "#616161",
+  fontWeight: "500",
+  marginBottom: 4,
+  textAlign: "center",    // Asegura que el texto quede centrado
+},
 });
 
 export default VehicleCard;
